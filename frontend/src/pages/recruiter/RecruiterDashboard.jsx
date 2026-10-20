@@ -234,6 +234,12 @@ export default function RecruiterDashboard() {
                     </td>
                     <td className="px-6 py-4 text-right space-x-2">
                       <Link
+                        to={`/recruiter/jobs/${job.id}/applicants`}
+                        className="px-2.5 py-1 rounded text-[11px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition inline-block"
+                      >
+                        Applicants
+                      </Link>
+                      <Link
                         to={`/jobs/${job.id}`}
                         className="px-2.5 py-1 rounded text-[11px] font-medium text-slate-600 hover:bg-slate-100"
                       >

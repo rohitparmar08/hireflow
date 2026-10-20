@@ -67,6 +67,15 @@ export default function Navbar() {
                 </Link>
               )}
 
+              {user.role === 'CANDIDATE' && (
+                <Link
+                  to="/candidate/applications"
+                  className="font-medium text-slate-700 hover:text-indigo-600 transition"
+                >
+                  My Applications
+                </Link>
+              )}
+
               <Link
                 to={dashboardPath}
                 className="font-medium text-slate-700 hover:text-indigo-600 transition"

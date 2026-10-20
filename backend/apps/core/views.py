@@ -62,6 +62,8 @@ class ApiRootView(APIView):
                     "public_list": request.build_absolute_uri("jobs/"),
                     "recruiter_jobs": request.build_absolute_uri("recruiter/jobs/"),
                 },
-                "applications": "/api/v1/applications/ (Phase 4)",
+                "applications": {
+                    "candidate_applications": request.build_absolute_uri("candidate/applications/"),
+                },
             },
         })

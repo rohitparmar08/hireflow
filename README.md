@@ -33,7 +33,8 @@ hireflow/
 │   └── apps/
 │       ├── core/               # Health check and core metadata endpoints
 │       ├── accounts/           # Custom User model, SimpleJWT auth, RBAC, profile endpoints
-│       └── jobs/               # JobPosting model, REST CRUD APIs, filters, pagination, admin
+│       ├── jobs/               # JobPosting model, REST CRUD APIs, filters, pagination, admin
+│       └── applications/       # Application & Resume models, PDF/DOCX ingestion parser, RBAC pipeline
 ├── frontend/
 │   ├── .env.example            # Frontend environment variable template
 │   ├── package.json            # React 19, Tailwind CSS, Axios, React Router
@@ -41,15 +42,16 @@ hireflow/
 │   ├── tailwind.config.js      # Tailwind CSS configuration
 │   ├── postcss.config.js
 │   └── src/
-│       ├── api/                # Axios instance, auth interceptors & API services (auth, jobs)
+│       ├── api/                # Axios instance, auth interceptors & API services (auth, jobs, applications)
 │       ├── context/            # AuthContext (login, register, logout, profile state)
 │       ├── routes/             # ProtectedRoute & RoleGuard components
 │       ├── components/         # Navbar, badges, layout primitives
 │       ├── pages/
 │       │   ├── auth/           # Login, Register
-│       │   ├── jobs/           # JobListing (public board), JobDetail
-│       │   ├── recruiter/      # RecruiterDashboard, CreateJob, EditJob
-│       │   ├── candidate/      # CandidateDashboard
+│       │   ├── jobs/           # JobListing (public board), JobDetail (with Apply modal)
+│       │   ├── recruiter/      # RecruiterDashboard, JobApplicants (pipeline view), CreateJob, EditJob
+│       │   ├── candidate/      # CandidateDashboard, MyApplications (tracker & withdraw)
+│       │   ├── applications/   # ApplicationDetail (recruiter decision panel & candidate view)
 │       │   ├── LandingPage.jsx
 │       │   └── Profile.jsx
 │       └── App.jsx             # React Router hierarchy
@@ -93,6 +95,15 @@ All endpoints are versioned under `/api/v1/`:
 - `skill`: Matches required or optional skills.
 - `min_salary`: Minimum salary filter.
 - `page`: Page number for pagination.
+
+### Candidate Applications & Resume Parsing (`/api/v1/jobs/{id}/apply/`, `/api/v1/applications/`)
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/jobs/{id}/apply/` | Candidate Only | Submit application with resume (multipart upload: PDF/DOCX, <= 5 MB, magic byte check) and optional cover note. Validates one application per candidate per job. Automatically triggers deterministic resume parsing for email, phone, standard skills taxonomy (150+ tech skills), and degree levels. |
+| `GET` | `/api/v1/candidate/applications/` | Candidate Only | Retrieve candidate's personal application history with status filter (`?status=SUBMITTED\|IN_REVIEW\|SHORTLISTED\|REJECTED\|WITHDRAWN`). |
+| `GET` | `/api/v1/jobs/{id}/applications/` | Recruiter (Job Owner) | List applicants for a specific job posting with resume parsing status and extracted skill previews. |
+| `GET` | `/api/v1/applications/{id}/` | Candidate Applicant \| Job Recruiter | View detailed application info, including parsed resume entities, cover note, and candidate profile. |
+| `PATCH` | `/api/v1/applications/{id}/` | Candidate Applicant \| Job Recruiter | Update application status. Recruiters can transition to `IN_REVIEW`, `SHORTLISTED`, or `REJECTED`. Candidates can transition to `WITHDRAWN`. |
 
 ---
 
@@ -158,7 +169,13 @@ The frontend is now running at `http://localhost:5173/`. Open this URL in your b
    cd hireflow/backend
    .\.venv\Scripts\python.exe manage.py test
    ```
-   Runs 24 automated tests covering:
+   Runs 34 automated tests covering:
+   - Application submission with resume upload and duplicate application prevention
+   - Resume validation (file type, 5 MB limit, magic signature verification)
+   - Resilient parsing (email, phone, degree detection, 150+ standard skills taxonomy)
+   - Application status updates and RBAC transitions (Recruiter vs Candidate)
+   - Candidate isolation (cannot access others' applications)
+   - Closed job protection (prevents new applications while preserving history)
    - Public access to active jobs and draft job hiding
    - Recruiter job creation, editing, and archive/closing
    - Candidate and anonymous posting restrictions
@@ -181,7 +198,7 @@ The frontend is now running at `http://localhost:5173/`. Open this URL in your b
 - [x] **Phase 1: Foundation & Tooling Setup**
 - [x] **Phase 2: Authentication, Custom User Model & RBAC**
 - [x] **Phase 3: Job Management Module**
-- [ ] **Phase 4: Candidate Application Flow & Resume Ingestion Engine**
+- [x] **Phase 4: Candidate Application Flow & Resume Ingestion Engine**
 - [ ] **Phase 5: AI Resume-to-Job Matching Engine & Explainable Scoring**
 - [ ] **Phase 6: Frontend Architecture, Dashboards & Role-Based Navigation**
 - [ ] **Phase 7: Recruiter Review Pipeline & AI Insights UI**

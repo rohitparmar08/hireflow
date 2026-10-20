@@ -1,8 +1,30 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import applicationsApi from '../../api/applications.api';
 
 export default function CandidateDashboard() {
   const { user } = useAuth();
+  const [applications, setApplications] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await applicationsApi.getCandidateApplications();
+        setApplications(data.results || []);
+      } catch {
+        // Fallback
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  const totalApplied = applications.length;
+  const underReview = applications.filter((a) => a.status === 'IN_REVIEW').length;
+  const shortlisted = applications.filter((a) => a.status === 'SHORTLISTED').length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -13,30 +35,29 @@ export default function CandidateDashboard() {
             <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
               Candidate Portal
             </span>
-            <span className="text-xs text-slate-400">Authenticated via SimpleJWT</span>
+            <span className="text-xs text-slate-400">Phase 4: Applications &amp; Resume Active</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-            Welcome, {user?.first_name || 'Candidate'}!
+            Welcome back, {user?.first_name || 'Candidate'}!
           </h1>
           <p className="text-sm text-slate-600 mt-1">
-            {user?.headline || 'Add your professional headline in your profile'}
+            {user?.headline || 'Explore open positions and track your hiring pipeline'}
           </p>
         </div>
 
         <div className="flex items-center space-x-3">
           <Link
-            to="/profile"
-            className="px-4 py-2 text-sm font-medium rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+            to="/jobs"
+            className="px-4 py-2 text-xs font-semibold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-xs transition"
           >
-            Edit Profile
+            Browse Openings &rarr;
           </Link>
-          <button
-            disabled
-            className="px-4 py-2 text-sm font-medium rounded-lg text-white bg-emerald-600 opacity-60 cursor-not-allowed shadow-xs"
-            title="Available in Phase 4"
+          <Link
+            to="/candidate/applications"
+            className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
           >
-            Browse Jobs (Phase 3/4)
-          </button>
+            My Applications
+          </Link>
         </div>
       </div>
 
@@ -46,45 +67,76 @@ export default function CandidateDashboard() {
           <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
             Applications Submitted
           </div>
-          <div className="text-3xl font-extrabold text-slate-900">0</div>
-          <p className="text-xs text-slate-400 mt-1">Ready for Phase 4 Applications</p>
+          <div className="text-3xl font-extrabold text-slate-900">{totalApplied}</div>
+          <p className="text-xs text-slate-400 mt-1">Across all active roles</p>
         </div>
 
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
-            Under Review
+          <div className="text-xs font-bold uppercase tracking-wider text-amber-600 mb-1">
+            In Review
           </div>
-          <div className="text-3xl font-extrabold text-slate-900">0</div>
-          <p className="text-xs text-slate-400 mt-1">Application Pipeline Tracker</p>
+          <div className="text-3xl font-extrabold text-amber-700">{underReview}</div>
+          <p className="text-xs text-slate-400 mt-1">Under recruiter evaluation</p>
         </div>
 
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+          <div className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-1">
             Shortlisted
           </div>
-          <div className="text-3xl font-extrabold text-slate-900">0</div>
-          <p className="text-xs text-slate-400 mt-1">Recruiter Status Notifications</p>
+          <div className="text-3xl font-extrabold text-emerald-700">{shortlisted}</div>
+          <p className="text-xs text-slate-400 mt-1">Advancing to next stage</p>
         </div>
       </div>
 
-      {/* RBAC Verification Info Card */}
-      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-emerald-950">
-        <h3 className="font-bold text-lg mb-2 flex items-center">
-          <svg className="w-5 h-5 mr-2 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fillRule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-              clipRule="evenodd"
-            />
-          </svg>
-          Phase 2 RBAC Verification Active
-        </h3>
-        <p className="text-sm leading-relaxed mb-3">
-          You are authenticated with the <strong>CANDIDATE</strong> role. The frontend <code className="bg-emerald-100 px-1.5 py-0.5 rounded text-xs font-mono">RoleGuard</code> and backend DRF permission classes (<code className="bg-emerald-100 px-1.5 py-0.5 rounded text-xs font-mono">IsCandidate</code>) are active. In Phase 4, you will be able to upload your resume (PDF/DOCX) and submit applications with automated parsing.
-        </p>
-        <div className="text-xs text-emerald-800">
-          User ID: <code className="font-mono">{user?.id}</code> &bull; Email: <code className="font-mono">{user?.email}</code>
+      {/* Recent Applications Card */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 sm:p-8">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
+          <h2 className="text-lg font-bold text-slate-900">Recent Applications</h2>
+          <Link
+            to="/candidate/applications"
+            className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+          >
+            View all ({totalApplied}) &rarr;
+          </Link>
         </div>
+
+        {loading ? (
+          <div className="p-8 text-center text-xs text-slate-400">Loading your applications...</div>
+        ) : applications.length === 0 ? (
+          <div className="p-8 text-center">
+            <p className="text-xs text-slate-500 mb-4">You haven&apos;t applied to any roles yet.</p>
+            <Link
+              to="/jobs"
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition"
+            >
+              Explore Open Jobs
+            </Link>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {applications.slice(0, 3).map((app) => (
+              <div key={app.id} className="py-4 flex items-center justify-between">
+                <div>
+                  <Link to={`/applications/${app.id}`} className="font-bold text-sm text-slate-900 hover:text-indigo-600 transition">
+                    {app.job_title}
+                  </Link>
+                  <div className="text-xs text-slate-500">{app.company_name} &bull; {app.job_location}</div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700">
+                    {app.status?.replace('_', ' ')}
+                  </span>
+                  <Link
+                    to={`/applications/${app.id}`}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                  >
+                    View &rarr;
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

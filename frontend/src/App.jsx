@@ -10,7 +10,10 @@ import JobDetail from './pages/jobs/JobDetail';
 import CreateJob from './pages/recruiter/CreateJob';
 import EditJob from './pages/recruiter/EditJob';
 import RecruiterDashboard from './pages/recruiter/RecruiterDashboard';
+import JobApplicants from './pages/recruiter/JobApplicants';
 import CandidateDashboard from './pages/candidate/CandidateDashboard';
+import MyApplications from './pages/candidate/MyApplications';
+import ApplicationDetail from './pages/applications/ApplicationDetail';
 import ProtectedRoute from './routes/ProtectedRoute';
 import RoleGuard from './routes/RoleGuard';
 
@@ -29,12 +32,20 @@ export default function App() {
               <Route path="/jobs" element={<JobListing />} />
               <Route path="/jobs/:id" element={<JobDetail />} />
 
-              {/* Authenticated Common Route */}
+              {/* Authenticated Common Routes */}
               <Route
                 path="/profile"
                 element={
                   <ProtectedRoute>
                     <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/applications/:id"
+                element={
+                  <ProtectedRoute>
+                    <ApplicationDetail />
                   </ProtectedRoute>
                 }
               />
@@ -70,8 +81,18 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/recruiter/jobs/:id/applicants"
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRole="RECRUITER">
+                      <JobApplicants />
+                    </RoleGuard>
+                  </ProtectedRoute>
+                }
+              />
 
-              {/* Candidate Protected Route (RoleGuard) */}
+              {/* Candidate Protected Routes (RoleGuard) */}
               <Route
                 path="/candidate/dashboard"
                 element={
@@ -82,13 +103,23 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/candidate/applications"
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRole="CANDIDATE">
+                      <MyApplications />
+                    </RoleGuard>
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Catch-all */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </div>
           <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
-            HireFlow &bull; AI-Powered Recruitment Management Platform &bull; Phase 3 Complete
+            HireFlow &bull; AI-Powered Recruitment Management Platform &bull; Phase 4 Complete
           </footer>
         </div>
       </AuthProvider>

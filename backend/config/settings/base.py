@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.accounts",
     "apps.jobs",
+    "apps.applications",
 ]
 
 # Custom User Model
