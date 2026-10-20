@@ -153,3 +153,49 @@ class Resume(models.Model):
 
     def __str__(self):
         return f"Resume for {self.application} ({self.parsing_status})"
+
+
+class JobApplicationMatch(models.Model):
+    """
+    Stores explainable AI resume-to-job matching calculation and score breakdown.
+    Decoupled from core application lifecycle for fast retrieval and on-demand recalculation.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    application = models.OneToOneField(
+        Application,
+        on_delete=models.CASCADE,
+        related_name="match_result",
+    )
+    overall_score = models.FloatField(
+        _("overall match score"),
+        default=0.0,
+        db_index=True,
+        help_text=_("Normalized match score from 0.0 to 100.0"),
+    )
+    skills_score = models.FloatField(default=0.0)
+    similarity_score = models.FloatField(default=0.0)
+    experience_score = models.FloatField(default=0.0)
+    education_score = models.FloatField(default=0.0)
+
+    matching_skills = models.JSONField(default=list, blank=True)
+    missing_skills = models.JSONField(default=list, blank=True)
+    breakdown = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=_("Detailed breakdown of component weights, scores, contributions, and explanations."),
+    )
+
+    calculated_at = models.DateTimeField(_("calculated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("application match result")
+        verbose_name_plural = _("application match results")
+        ordering = ["-overall_score"]
+        indexes = [
+            models.Index(fields=["-overall_score"]),
+        ]
+
+    def __str__(self):
+        return f"Match {self.overall_score}% for {self.application}"
+

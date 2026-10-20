@@ -163,6 +163,21 @@ export default function MyApplications() {
                     >
                       {app.status?.replace('_', ' ')}
                     </span>
+                    {app.match_score !== null && app.match_score !== undefined && (
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border flex items-center gap-1.5 ${
+                          app.match_score >= 80
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : app.match_score >= 60
+                            ? 'bg-blue-50 text-blue-700 border-blue-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}
+                        title="Algorithmic resume-to-job match score"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                        {Math.round(app.match_score)}% AI Match
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">

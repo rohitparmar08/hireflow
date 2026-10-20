@@ -11,6 +11,8 @@ export default function JobApplicants() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [ordering, setOrdering] = useState('-created_at');
+  const [minScoreFilter, setMinScoreFilter] = useState('');
 
   const fetchApplicants = useCallback(async () => {
     setLoading(true);
@@ -18,7 +20,11 @@ export default function JobApplicants() {
     try {
       const [jobData, appData] = await Promise.all([
         jobsApi.getJobDetail(id),
-        applicationsApi.getJobApplicants(id, { status: statusFilter || undefined }),
+        applicationsApi.getJobApplicants(id, {
+          status: statusFilter || undefined,
+          ordering: ordering || undefined,
+          min_score: minScoreFilter || undefined,
+        }),
       ]);
       setJob(jobData);
       setApplicants(appData.results || []);
@@ -27,7 +33,7 @@ export default function JobApplicants() {
     } finally {
       setLoading(false);
     }
-  }, [id, statusFilter]);
+  }, [id, statusFilter, ordering, minScoreFilter]);
 
   useEffect(() => {
     fetchApplicants();
@@ -107,29 +113,69 @@ export default function JobApplicants() {
         </div>
       </div>
 
-      {/* Pipeline Filter Tabs & Table */}
+      {/* Pipeline Controls: Filter Tabs, Score Threshold & Sorting */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex flex-wrap gap-2">
-          {[
-            { label: 'All Candidates', value: '' },
-            { label: 'Submitted', value: 'SUBMITTED' },
-            { label: 'In Review', value: 'IN_REVIEW' },
-            { label: 'Shortlisted', value: 'SHORTLISTED' },
-            { label: 'Rejected', value: 'REJECTED' },
-            { label: 'Withdrawn', value: 'WITHDRAWN' },
-          ].map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => setStatusFilter(tab.value)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                statusFilter === tab.value
-                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          {/* Status Tabs */}
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: 'All Candidates', value: '' },
+              { label: 'Submitted', value: 'SUBMITTED' },
+              { label: 'In Review', value: 'IN_REVIEW' },
+              { label: 'Shortlisted', value: 'SHORTLISTED' },
+              { label: 'Rejected', value: 'REJECTED' },
+              { label: 'Withdrawn', value: 'WITHDRAWN' },
+            ].map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setStatusFilter(tab.value)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                  statusFilter === tab.value
+                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Sorting & Match Score Filters */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center space-x-1.5">
+              <label htmlFor="sort-select" className="text-xs font-semibold text-slate-500 whitespace-nowrap">
+                Sort:
+              </label>
+              <select
+                id="sort-select"
+                value={ordering}
+                onChange={(e) => setOrdering(e.target.value)}
+                className="text-xs rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-slate-700 font-medium focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              >
+                <option value="-created_at">Newest First</option>
+                <option value="-match_score">Highest Match Score</option>
+                <option value="match_score">Lowest Match Score</option>
+                <option value="created_at">Oldest First</option>
+              </select>
+            </div>
+
+            <div className="flex items-center space-x-1.5">
+              <label htmlFor="score-filter" className="text-xs font-semibold text-slate-500 whitespace-nowrap">
+                Match:
+              </label>
+              <select
+                id="score-filter"
+                value={minScoreFilter}
+                onChange={(e) => setMinScoreFilter(e.target.value)}
+                className="text-xs rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-slate-700 font-medium focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              >
+                <option value="">All Scores</option>
+                <option value="80">80%+ (Strong Match)</option>
+                <option value="60">60%+ (Good Match)</option>
+                <option value="40">40%+ (Moderate)</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         {error && (
@@ -154,8 +200,8 @@ export default function JobApplicants() {
             </div>
             <h3 className="font-bold text-slate-800 text-base mb-1">No applicants found</h3>
             <p className="text-xs text-slate-500">
-              {statusFilter
-                ? `No applications currently have status '${statusFilter}'.`
+              {statusFilter || minScoreFilter
+                ? 'No applications match the current status or score criteria.'
                 : 'No candidates have applied for this position yet.'}
             </p>
           </div>
@@ -167,6 +213,7 @@ export default function JobApplicants() {
               <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-100">
                 <tr>
                   <th className="px-6 py-3.5">Candidate</th>
+                  <th className="px-6 py-3.5">AI Match Score</th>
                   <th className="px-6 py-3.5">Detected Skills (Extracted)</th>
                   <th className="px-6 py-3.5">Status</th>
                   <th className="px-6 py-3.5">Applied Date</th>
@@ -181,6 +228,43 @@ export default function JobApplicants() {
                       <div className="text-[11px] text-slate-500">{app.candidate_email}</div>
                       {app.candidate_headline && (
                         <div className="text-[11px] text-slate-400 mt-0.5">{app.candidate_headline}</div>
+                      )}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      {app.match_score !== null && app.match_score !== undefined ? (
+                        <div className="space-y-1.5 w-32">
+                          <div className="flex items-center justify-between">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[11px] font-extrabold border ${
+                                app.match_score >= 80
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : app.match_score >= 60
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                              }`}
+                            >
+                              {Math.round(app.match_score)}%
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              {app.match_score >= 80 ? 'Strong' : app.match_score >= 60 ? 'Good' : 'Moderate'}
+                            </span>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${
+                                app.match_score >= 80
+                                  ? 'bg-emerald-500'
+                                  : app.match_score >= 60
+                                  ? 'bg-blue-500'
+                                  : 'bg-amber-500'
+                              }`}
+                              style={{ width: `${Math.min(100, Math.max(0, app.match_score))}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 italic text-[11px]">Pending calculation</span>
                       )}
                     </td>
 

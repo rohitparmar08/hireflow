@@ -35,6 +35,17 @@ export const applicationsApi = {
     const response = await apiClient.patch(`/applications/${id}/`, { status: newStatus });
     return response.data;
   },
+
+  getApplicationMatch: async (id) => {
+    const response = await apiClient.get(`/applications/${id}/match/`);
+    return response.data;
+  },
+
+  recalculateMatch: async (id) => {
+    const response = await apiClient.post(`/applications/${id}/match/`);
+    return response.data;
+  },
 };
+
 
 export default applicationsApi;

@@ -339,3 +339,299 @@ class ApplicationAndResumeTests(APITestCase):
         rec_res = self.client.get(reverse("applications-v1:job_applicants", kwargs={"id": self.job.id}))
         self.assertEqual(rec_res.status_code, status.HTTP_200_OK)
         self.assertEqual(rec_res.data["count"], 1)
+
+
+class AIMatchingEngineTests(APITestCase):
+    """
+    Test suite for Phase 5: AI Resume-to-Job Matching Engine & Explainable Scoring.
+    """
+
+    def setUp(self):
+        # Recruiter
+        self.recruiter_a = User.objects.create_user(
+            email="recruiter_a@techhire.com",
+            password="Password123!",
+            first_name="Elena",
+            last_name="Vance",
+            role=Role.RECRUITER,
+            company_name="TechCorp",
+        )
+        self.recruiter_b = User.objects.create_user(
+            email="recruiter_b@techhire.com",
+            password="Password123!",
+            first_name="Barney",
+            last_name="Calhoun",
+            role=Role.RECRUITER,
+            company_name="OtherCorp",
+        )
+
+        # Candidates
+        self.candidate_1 = User.objects.create_user(
+            email="candidate_1@dev.io",
+            password="Password123!",
+            first_name="Gordon",
+            last_name="Freeman",
+            role=Role.CANDIDATE,
+        )
+        self.candidate_2 = User.objects.create_user(
+            email="candidate_2@dev.io",
+            password="Password123!",
+            first_name="Alyx",
+            last_name="Vance",
+            role=Role.CANDIDATE,
+        )
+
+        # Job posting with specific technical requirements
+        self.job = JobPosting.objects.create(
+            recruiter=self.recruiter_a,
+            title="Senior Python Backend Engineer",
+            company_name="TechCorp",
+            location="San Francisco, CA",
+            location_type=LocationType.REMOTE,
+            employment_type=EmploymentType.FULL_TIME,
+            experience_level=ExperienceLevel.SENIOR,
+            description="We are seeking a Senior Python Engineer with deep experience in Django, REST APIs, PostgreSQL, and Docker. 5+ years of experience required. Master's degree preferred.",
+            required_skills=["Python", "Django", "PostgreSQL", "Docker"],
+            optional_skills=["Redis", "Kubernetes", "AWS"],
+            status=JobStatus.ACTIVE,
+        )
+
+    def test_matching_score_range_and_breakdown_weights(self):
+        from apps.applications.services.matching_engine import calculate_match_breakdown
+
+        class MockResume:
+            raw_text = "Senior Python engineer with 6 years of experience building scalable Django REST APIs and Docker containers. M.S. in Computer Science. Skills: Python, Django, PostgreSQL, Docker, Redis."
+            parsed_data = {
+                "skills": ["Python", "Django", "PostgreSQL", "Docker", "Redis"],
+                "education": ["Master", "M.S."],
+            }
+
+        result = calculate_match_breakdown(self.job, MockResume())
+
+        # Assert score range
+        self.assertGreaterEqual(result["overall_score"], 0.0)
+        self.assertLessEqual(result["overall_score"], 100.0)
+
+        # Assert weights sum to 100%
+        weights = result["breakdown"]["weights"]
+        self.assertEqual(sum(weights.values()), 100)
+
+        # Assert component structure
+        comps = result["breakdown"]["components"]
+        self.assertIn("required_skills", comps)
+        self.assertIn("optional_skills", comps)
+        self.assertIn("text_similarity", comps)
+        self.assertIn("experience_alignment", comps)
+        self.assertIn("education_alignment", comps)
+
+        for comp_name, comp_data in comps.items():
+            self.assertGreaterEqual(comp_data["score"], 0.0)
+            self.assertLessEqual(comp_data["score"], 100.0)
+
+    def test_exact_and_case_insensitive_skill_matching(self):
+        from apps.applications.services.matching_engine import compute_skill_overlap
+
+        job_skills = ["Python", "Django", "PostgreSQL", "Docker"]
+        # Candidate has lowercase & different casing
+        resume_skills = ["python", "DJANGO", "postgresql", "React"]
+
+        matching, missing, score = compute_skill_overlap(job_skills, resume_skills)
+
+        self.assertEqual(len(matching), 3)
+        self.assertIn("Python", matching)
+        self.assertIn("Django", matching)
+        self.assertIn("PostgreSQL", matching)
+        self.assertEqual(missing, ["Docker"])
+        self.assertEqual(score, 75.0)
+
+    def test_missing_resume_or_incomplete_parsed_data_graceful(self):
+        from apps.applications.services.matching_engine import calculate_match_breakdown
+
+        # 1. None resume
+        res_none = calculate_match_breakdown(self.job, None)
+        self.assertEqual(res_none["overall_score"], 0.0)
+        self.assertEqual(res_none["matching_skills"], [])
+
+        # 2. Empty raw_text
+        class EmptyResume:
+            raw_text = ""
+            parsed_data = {}
+
+        res_empty = calculate_match_breakdown(self.job, EmptyResume())
+        self.assertEqual(res_empty["overall_score"], 0.0)
+        self.assertIn("status", res_empty["breakdown"])
+        self.assertEqual(res_empty["breakdown"]["status"], "UNREADABLE")
+
+    def test_empty_job_description_and_skills(self):
+        from apps.applications.services.matching_engine import calculate_match_breakdown
+
+        empty_job = JobPosting(
+            title="General Role",
+            description="",
+            required_skills=[],
+            optional_skills=[],
+            experience_level="ENTRY",
+        )
+
+        class SimpleResume:
+            raw_text = "Junior developer with passion for software engineering. B.S. degree."
+            parsed_data = {"skills": ["Python"], "education": ["B.S."]}
+
+        result = calculate_match_breakdown(empty_job, SimpleResume())
+        self.assertGreaterEqual(result["overall_score"], 0.0)
+        self.assertLessEqual(result["overall_score"], 100.0)
+
+    def test_deterministic_scoring(self):
+        from apps.applications.services.matching_engine import calculate_match_breakdown
+
+        class CandidateResume:
+            raw_text = "Python and Django backend developer with 3 years of experience. B.S. in Computer Science."
+            parsed_data = {"skills": ["Python", "Django"], "education": ["B.S."]}
+
+        res1 = calculate_match_breakdown(self.job, CandidateResume())
+        res2 = calculate_match_breakdown(self.job, CandidateResume())
+
+        self.assertEqual(res1["overall_score"], res2["overall_score"])
+        self.assertEqual(res1["skills_score"], res2["skills_score"])
+        self.assertEqual(res1["similarity_score"], res2["similarity_score"])
+        self.assertEqual(res1["matching_skills"], res2["matching_skills"])
+        self.assertEqual(res1["missing_skills"], res2["missing_skills"])
+
+    def test_automatic_matching_on_application_submission(self):
+        self.client.force_authenticate(user=self.candidate_1)
+        pdf_content = (
+            "Gordon Freeman gordon@dev.io "
+            "Senior Python Engineer with 6 years of experience in Django, PostgreSQL, Docker, and Redis. "
+            "Ph.D. in Physics from MIT."
+        )
+        pdf_file = SimpleUploadedFile("gordon_resume.pdf", generate_test_pdf(pdf_content), content_type="application/pdf")
+
+        response = self.client.post(
+            reverse("applications-v1:job_apply", kwargs={"id": self.job.id}),
+            {"file": pdf_file, "cover_note": "Excited to apply for the Senior Python Engineer position."},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        app_id = response.data["id"]
+        app = Application.objects.get(id=app_id)
+
+        # Match result should have been automatically computed and saved
+        self.assertTrue(hasattr(app, "match_result"))
+        self.assertIsNotNone(app.match_result)
+        self.assertGreater(app.match_result.overall_score, 50.0)
+        self.assertIn("Python", app.match_result.matching_skills)
+
+    def test_get_match_endpoint_permissions(self):
+        # 1. Candidate 1 applies
+        self.client.force_authenticate(user=self.candidate_1)
+        pdf_file = SimpleUploadedFile(
+            "resume.pdf",
+            generate_test_pdf("Python Django developer with 4 years experience."),
+            content_type="application/pdf",
+        )
+        app_res = self.client.post(
+            reverse("applications-v1:job_apply", kwargs={"id": self.job.id}),
+            {"file": pdf_file},
+            format="multipart",
+        )
+        app_id = app_res.data["id"]
+
+        match_url = reverse("applications-v1:application_match", kwargs={"id": app_id})
+
+        # 2. Unauthenticated access is rejected
+        self.client.force_authenticate(user=None)
+        res_anon = self.client.get(match_url)
+        self.assertEqual(res_anon.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # 3. Candidate 1 (owner of application) can view match
+        self.client.force_authenticate(user=self.candidate_1)
+        res_cand1 = self.client.get(match_url)
+        self.assertEqual(res_cand1.status_code, status.HTTP_200_OK)
+        self.assertIn("overall_score", res_cand1.data)
+        self.assertIn("breakdown", res_cand1.data)
+
+        # 4. Candidate 2 cannot view Candidate 1's match (403 Forbidden)
+        self.client.force_authenticate(user=self.candidate_2)
+        res_cand2 = self.client.get(match_url)
+        self.assertEqual(res_cand2.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 5. Recruiter A (owner of the job) can view match
+        self.client.force_authenticate(user=self.recruiter_a)
+        res_rec_a = self.client.get(match_url)
+        self.assertEqual(res_rec_a.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_rec_a.data["candidate_name"], "Gordon Freeman")
+
+        # 6. Recruiter B (does not own this job) cannot view match (403 Forbidden)
+        self.client.force_authenticate(user=self.recruiter_b)
+        res_rec_b = self.client.get(match_url)
+        self.assertEqual(res_rec_b.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_post_recalculate_match_endpoint(self):
+        # Apply
+        self.client.force_authenticate(user=self.candidate_1)
+        pdf_file = SimpleUploadedFile("resume.pdf", generate_test_pdf("Python Django developer"), content_type="application/pdf")
+        app_res = self.client.post(
+            reverse("applications-v1:job_apply", kwargs={"id": self.job.id}),
+            {"file": pdf_file},
+            format="multipart",
+        )
+        app_id = app_res.data["id"]
+        match_url = reverse("applications-v1:application_match", kwargs={"id": app_id})
+
+        # Recruiter recalculates match
+        self.client.force_authenticate(user=self.recruiter_a)
+        recalc_res = self.client.post(match_url)
+        self.assertEqual(recalc_res.status_code, status.HTTP_200_OK)
+        self.assertIn("overall_score", recalc_res.data)
+
+        # Unauthorized recruiter cannot recalculate
+        self.client.force_authenticate(user=self.recruiter_b)
+        forbidden_recalc = self.client.post(match_url)
+        self.assertEqual(forbidden_recalc.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_recruiter_applicant_list_sorting_by_match_score(self):
+        # Candidate 1: High match (all skills)
+        self.client.force_authenticate(user=self.candidate_1)
+        high_match_pdf = SimpleUploadedFile(
+            "high.pdf",
+            generate_test_pdf("Senior engineer Python Django PostgreSQL Docker Redis Kubernetes AWS. Master degree."),
+            content_type="application/pdf",
+        )
+        self.client.post(
+            reverse("applications-v1:job_apply", kwargs={"id": self.job.id}),
+            {"file": high_match_pdf},
+            format="multipart",
+        )
+
+        # Candidate 2: Low match (few skills)
+        self.client.force_authenticate(user=self.candidate_2)
+        low_match_pdf = SimpleUploadedFile(
+            "low.pdf",
+            generate_test_pdf("Junior designer with HTML and CSS."),
+            content_type="application/pdf",
+        )
+        self.client.post(
+            reverse("applications-v1:job_apply", kwargs={"id": self.job.id}),
+            {"file": low_match_pdf},
+            format="multipart",
+        )
+
+        # Recruiter requests sorted by match_score descending
+        self.client.force_authenticate(user=self.recruiter_a)
+        sort_desc_res = self.client.get(
+            reverse("applications-v1:job_applicants", kwargs={"id": self.job.id}) + "?ordering=-match_score"
+        )
+        self.assertEqual(sort_desc_res.status_code, status.HTTP_200_OK)
+        results = sort_desc_res.data["results"]
+        self.assertEqual(len(results), 2)
+        self.assertGreaterEqual(results[0]["match_score"], results[1]["match_score"])
+
+        # Recruiter requests sorted by match_score ascending
+        sort_asc_res = self.client.get(
+            reverse("applications-v1:job_applicants", kwargs={"id": self.job.id}) + "?ordering=match_score"
+        )
+        self.assertEqual(sort_asc_res.status_code, status.HTTP_200_OK)
+        results_asc = sort_asc_res.data["results"]
+        self.assertLessEqual(results_asc[0]["match_score"], results_asc[1]["match_score"])
+

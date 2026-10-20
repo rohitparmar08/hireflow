@@ -99,11 +99,49 @@ All endpoints are versioned under `/api/v1/`:
 ### Candidate Applications & Resume Parsing (`/api/v1/jobs/{id}/apply/`, `/api/v1/applications/`)
 | Method | Endpoint | Access | Description |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/jobs/{id}/apply/` | Candidate Only | Submit application with resume (multipart upload: PDF/DOCX, <= 5 MB, magic byte check) and optional cover note. Validates one application per candidate per job. Automatically triggers deterministic resume parsing for email, phone, standard skills taxonomy (150+ tech skills), and degree levels. |
-| `GET` | `/api/v1/candidate/applications/` | Candidate Only | Retrieve candidate's personal application history with status filter (`?status=SUBMITTED\|IN_REVIEW\|SHORTLISTED\|REJECTED\|WITHDRAWN`). |
-| `GET` | `/api/v1/jobs/{id}/applications/` | Recruiter (Job Owner) | List applicants for a specific job posting with resume parsing status and extracted skill previews. |
-| `GET` | `/api/v1/applications/{id}/` | Candidate Applicant \| Job Recruiter | View detailed application info, including parsed resume entities, cover note, and candidate profile. |
+| `POST` | `/api/v1/jobs/{id}/apply/` | Candidate Only | Submit application with resume (multipart upload: PDF/DOCX, <= 5 MB, magic byte check) and optional cover note. Validates one application per candidate per job. Automatically triggers deterministic resume parsing and AI matching. |
+| `GET` | `/api/v1/candidate/applications/` | Candidate Only | Retrieve candidate's personal application history with status filter (`?status=SUBMITTED\|IN_REVIEW\|SHORTLISTED\|REJECTED\|WITHDRAWN`). Includes computed AI match score. |
+| `GET` | `/api/v1/jobs/{id}/applications/` | Recruiter (Job Owner) | List applicants for a specific job posting with resume parsing status, detected skill previews, and match scores. Supports sorting (`?ordering=-match_score\|match_score\|-created_at`) and score threshold filtering (`?min_score=80`). |
+| `GET` | `/api/v1/applications/{id}/` | Candidate Applicant \| Job Recruiter | View detailed application info, including parsed resume entities, cover note, candidate profile, and full AI match breakdown. |
 | `PATCH` | `/api/v1/applications/{id}/` | Candidate Applicant \| Job Recruiter | Update application status. Recruiters can transition to `IN_REVIEW`, `SHORTLISTED`, or `REJECTED`. Candidates can transition to `WITHDRAWN`. |
+
+### AI Matching Engine & Explainable Insights (`/api/v1/applications/{id}/match/`)
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/applications/{id}/match/` | Candidate Applicant \| Job Recruiter | Retrieve persisted AI match result, component breakdown, matching skills, and missing skills. Computes on-the-fly if not previously stored. |
+| `POST` | `/api/v1/applications/{id}/match/` | Candidate Applicant \| Job Recruiter | Force recalculate and refresh the resume-to-job match score and explainable breakdown. |
+
+---
+
+## 🧠 AI Matching Engine & Scoring Methodology
+
+HireFlow incorporates an explainable, deterministic AI matching pipeline that runs locally without external paid APIs, black-box hallucinations, or proprietary data leakage.
+
+### 1. Mathematical Scoring Formula
+
+The overall match score (normalized strictly from **0.0 to 100.0**) is calculated as a weighted linear combination of five transparent components:
+
+$$\text{Overall Score} = (0.40 \times S_{\text{req}}) + (0.15 \times S_{\text{opt}}) + (0.25 \times S_{\text{tfidf}}) + (0.10 \times S_{\text{exp}}) + (0.10 \times S_{\text{edu}})$$
+
+| Component | Weight | Evaluation Method | Description |
+| :--- | :---: | :--- | :--- |
+| **Required Skills** ($S_{\text{req}}$) | **40%** | Exact & case-insensitive taxonomy intersection | $\frac{\|R_{\text{skills}} \cap C_{\text{skills}}\|}{\|R_{\text{skills}}\|} \times 100$. If job lists no required skills, defaults to 100%. |
+| **Optional Skills** ($S_{\text{opt}}$) | **15%** | Exact & case-insensitive taxonomy intersection | $\frac{\|O_{\text{skills}} \cap C_{\text{skills}}\|}{\|O_{\text{skills}}\|} \times 100$. If job lists no optional skills, defaults to 100%. |
+| **Text Similarity** ($S_{\text{tfidf}}$) | **25%** | Scikit-Learn TF-IDF vectorizer + Cosine Similarity | Bi-gram ($n=1,2$) TF-IDF vectorization with English stop words and code-token retention (`C++`, `C#`, `.NET`) comparing job corpus with resume text + cover note. |
+| **Experience Level** ($S_{\text{exp}}$) | **10%** | Seniority keywords & years of experience regex | Compares job target level (`ENTRY`, `MID`, `SENIOR`, `LEAD`, `EXECUTIVE`) against resume indicators. Defaults to 50% neutral baseline if undetectable. |
+| **Education Tier** ($S_{\text{edu}}$) | **10%** | Credential taxonomy matching | Categorizes detected degrees (`Doctorate`: 100%, `Master`: 95%, `Bachelor`: 85%, `Associate`: 70%). Defaults to 55% baseline if no degree stated. |
+
+### 2. Explainability & Breakdown JSON
+Every match returns a complete audit breakdown:
+- Explicit weights and numeric contributions for each factor.
+- Plain-English narrative notes explaining why each score was awarded.
+- Distinct lists of **matching skills** (verified) and **missing skills** (actionable gap analysis).
+- Strict degradation: unreadable documents or failed extractions cleanly receive a 0.0 score with descriptive error reasons.
+
+### 3. Limitations & Ethical Guardrails
+- **No Soft Skill Assessment**: The model evaluates technical skills and document text; it does not measure communication, culture fit, or emotional intelligence.
+- **Document Format Dependency**: Text extraction depends on machine-readable PDFs and DOCX files. Image-based or scanned PDFs without OCR yield unreadable status.
+- **Human-in-the-Loop Screening**: The platform surfaces scores as an assistive screening aid; it does not automate rejection or selection.
 
 ---
 
@@ -169,7 +207,16 @@ The frontend is now running at `http://localhost:5173/`. Open this URL in your b
    cd hireflow/backend
    .\.venv\Scripts\python.exe manage.py test
    ```
-   Runs 34 automated tests covering:
+   Runs 43 automated tests covering:
+   - Explainable AI matching score calculation across 0.0 to 100.0 bounds
+   - Deterministic and reproducible scoring across identical inputs
+   - Exact and case-insensitive skill taxonomy matching and missing skills identification
+   - TF-IDF bi-gram cosine similarity and experience/education tiering
+   - Graceful degradation for unreadable or incomplete resume data
+   - Automatic match calculation upon candidate application submission
+   - Match endpoint authorization (`/applications/{id}/match/`) for candidates and job recruiters
+   - Protection against unauthorized match retrieval or recalculation attempts
+   - Recruiter applicant sorting by match score (`?ordering=-match_score`) and score threshold filtering
    - Application submission with resume upload and duplicate application prevention
    - Resume validation (file type, 5 MB limit, magic signature verification)
    - Resilient parsing (email, phone, degree detection, 150+ standard skills taxonomy)
@@ -199,7 +246,7 @@ The frontend is now running at `http://localhost:5173/`. Open this URL in your b
 - [x] **Phase 2: Authentication, Custom User Model & RBAC**
 - [x] **Phase 3: Job Management Module**
 - [x] **Phase 4: Candidate Application Flow & Resume Ingestion Engine**
-- [ ] **Phase 5: AI Resume-to-Job Matching Engine & Explainable Scoring**
+- [x] **Phase 5: AI Resume-to-Job Matching Engine & Explainable Scoring**
 - [ ] **Phase 6: Frontend Architecture, Dashboards & Role-Based Navigation**
 - [ ] **Phase 7: Recruiter Review Pipeline & AI Insights UI**
 - [ ] **Phase 8: Validation, Testing Suite & Deployment Hardening**

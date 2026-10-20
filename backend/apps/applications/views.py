@@ -9,14 +9,17 @@ from rest_framework.views import APIView
 from apps.accounts.permissions import IsRecruiter
 from apps.jobs.models import JobPosting
 from apps.jobs.pagination import StandardResultsSetPagination
-from .models import Application, ApplicationStatus
+from .models import Application, ApplicationStatus, JobApplicationMatch
 from .permissions import IsCandidate, IsApplicationParticipant
 from .serializers import (
     ApplicationDetailSerializer,
     ApplicationListSerializer,
     ApplicationStatusUpdateSerializer,
     ApplicationSubmissionSerializer,
+    JobApplicationMatchSerializer,
 )
+from .services.matching_engine import compute_and_save_match
+
 
 
 class JobApplicationSubmitView(APIView):
@@ -53,7 +56,7 @@ class CandidateApplicationsListView(generics.ListAPIView):
     def get_queryset(self):
         queryset = (
             Application.objects.filter(candidate=self.request.user)
-            .select_related("job", "resume")
+            .select_related("job", "resume", "match_result")
             .order_by("-created_at")
         )
 
@@ -67,6 +70,7 @@ class CandidateApplicationsListView(generics.ListAPIView):
 class JobApplicantsListView(generics.ListAPIView):
     """
     GET /api/v1/jobs/{id}/applications/ — Recruiter views candidates who applied for their job.
+    Supports filtering by status and sorting by match score or submission date.
     """
 
     permission_classes = [IsAuthenticated, IsRecruiter]
@@ -83,13 +87,30 @@ class JobApplicantsListView(generics.ListAPIView):
 
         queryset = (
             Application.objects.filter(job=job)
-            .select_related("candidate", "resume")
-            .order_by("-created_at")
+            .select_related("candidate", "resume", "match_result")
         )
 
         status_param = self.request.query_params.get("status", "").strip().upper()
         if status_param and status_param in ApplicationStatus.values:
             queryset = queryset.filter(status=status_param)
+
+        # Optional filter by minimum match score
+        min_score = self.request.query_params.get("min_score")
+        if min_score is not None and min_score != "":
+            try:
+                queryset = queryset.filter(match_result__overall_score__gte=float(min_score))
+            except ValueError:
+                pass
+
+        # Configurable ordering: match_score, -match_score, created_at, -created_at
+        ordering = self.request.query_params.get("ordering", "-created_at").strip()
+        if ordering in ["match_score", "-match_score"]:
+            prefix = "-" if ordering.startswith("-") else ""
+            queryset = queryset.order_by(f"{prefix}match_result__overall_score", "-created_at")
+        elif ordering in ["created_at", "-created_at"]:
+            queryset = queryset.order_by(ordering)
+        else:
+            queryset = queryset.order_by("-created_at")
 
         return queryset
 
@@ -109,7 +130,7 @@ class ApplicationDetailView(generics.RetrieveUpdateAPIView):
         return ApplicationDetailSerializer
 
     def get_queryset(self):
-        return Application.objects.select_related("job", "candidate", "resume")
+        return Application.objects.select_related("job", "candidate", "resume", "match_result")
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", True)
@@ -121,3 +142,42 @@ class ApplicationDetailView(generics.RetrieveUpdateAPIView):
 
         detail_serializer = ApplicationDetailSerializer(updated_app, context={"request": request})
         return Response(detail_serializer.data, status=status.HTTP_200_OK)
+
+
+class ApplicationMatchView(APIView):
+    """
+    GET /api/v1/applications/{id}/match/ — Retrieve explainable AI matching score & breakdown.
+    POST /api/v1/applications/{id}/match/ — Recalculate/refresh match score & breakdown.
+    Enforces participant RBAC: Candidate who applied or Recruiter owning the job only.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def _get_authorized_application(self, request, id):
+        application = get_object_or_404(
+            Application.objects.select_related("job", "candidate", "resume", "match_result"),
+            id=id,
+        )
+        user = request.user
+        if application.candidate != user and application.job.recruiter != user:
+            raise PermissionDenied("You do not have permission to view or calculate match results for this application.")
+        return application
+
+    def get(self, request, id, *args, **kwargs):
+        application = self._get_authorized_application(request, id)
+
+        if hasattr(application, "match_result") and application.match_result:
+            match_record = application.match_result
+        else:
+            match_record = compute_and_save_match(application)
+
+        serializer = JobApplicationMatchSerializer(match_record)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request, id, *args, **kwargs):
+        application = self._get_authorized_application(request, id)
+        # Force recalculation
+        match_record = compute_and_save_match(application)
+        serializer = JobApplicationMatchSerializer(match_record)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+

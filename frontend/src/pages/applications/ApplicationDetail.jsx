@@ -9,9 +9,12 @@ export default function ApplicationDetail() {
   const navigate = useNavigate();
 
   const [application, setApplication] = useState(null);
+  const [matchResult, setMatchResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [recalculatingMatch, setRecalculatingMatch] = useState(false);
+  const [matchError, setMatchError] = useState('');
   const [showRawText, setShowRawText] = useState(false);
 
   const fetchApplication = useCallback(async () => {
@@ -20,6 +23,17 @@ export default function ApplicationDetail() {
     try {
       const data = await applicationsApi.getApplicationDetail(id);
       setApplication(data);
+      if (data.match_result) {
+        setMatchResult(data.match_result);
+      } else {
+        // Fallback: auto-fetch or compute match
+        try {
+          const matchData = await applicationsApi.getApplicationMatch(id);
+          setMatchResult(matchData);
+        } catch {
+          // silent fallback
+        }
+      }
     } catch (err) {
       setError(err.response?.data?.detail || err.message || 'Failed to load application.');
     } finally {
@@ -30,6 +44,19 @@ export default function ApplicationDetail() {
   useEffect(() => {
     fetchApplication();
   }, [fetchApplication]);
+
+  const handleRecalculateMatch = async () => {
+    setRecalculatingMatch(true);
+    setMatchError('');
+    try {
+      const updatedMatch = await applicationsApi.recalculateMatch(id);
+      setMatchResult(updatedMatch);
+    } catch (err) {
+      setMatchError(err.response?.data?.detail || err.message || 'Failed to recalculate match score.');
+    } finally {
+      setRecalculatingMatch(false);
+    }
+  };
 
   const handleStatusChange = async (newStatus) => {
     setUpdatingStatus(true);
@@ -206,6 +233,304 @@ export default function ApplicationDetail() {
             <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
               {application.cover_note}
             </p>
+          </div>
+        )}
+      </div>
+
+      {/* AI Resume-to-Job Matching & Explainable Insights */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 sm:p-8 mb-8 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-6 border-b border-slate-100 gap-4">
+          <div className="flex items-center gap-4">
+            <div
+              className={`w-16 h-16 rounded-2xl flex flex-col items-center justify-center font-extrabold text-white shadow-xs ${
+                !matchResult
+                  ? 'bg-slate-300'
+                  : matchResult.overall_score >= 80
+                  ? 'bg-emerald-600'
+                  : matchResult.overall_score >= 60
+                  ? 'bg-blue-600'
+                  : matchResult.overall_score >= 40
+                  ? 'bg-amber-600'
+                  : 'bg-rose-600'
+              }`}
+            >
+              <span className="text-xl leading-none">
+                {matchResult ? Math.round(matchResult.overall_score) : '--'}
+              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider opacity-90">Score</span>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  AI Matching Engine
+                </span>
+                {matchResult && (
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                      matchResult.overall_score >= 80
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : matchResult.overall_score >= 60
+                        ? 'bg-blue-100 text-blue-800'
+                        : matchResult.overall_score >= 40
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-rose-100 text-rose-800'
+                    }`}
+                  >
+                    {matchResult.overall_score >= 80
+                      ? 'Strong Match'
+                      : matchResult.overall_score >= 60
+                      ? 'Good Match'
+                      : matchResult.overall_score >= 40
+                      ? 'Moderate Match'
+                      : 'Low Match'}
+                  </span>
+                )}
+              </div>
+              <h2 className="text-lg font-bold text-slate-900">Resume-to-Job Fit Analysis</h2>
+              <p className="text-xs text-slate-500">
+                Explainable breakdown comparing technical skills, experience tier, and semantic text overlap.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            disabled={recalculatingMatch}
+            onClick={handleRecalculateMatch}
+            className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition flex items-center justify-center gap-1.5 self-start sm:self-auto disabled:opacity-50"
+          >
+            <svg
+              className={`w-3.5 h-3.5 ${recalculatingMatch ? 'animate-spin text-indigo-600' : 'text-slate-500'}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            <span>{recalculatingMatch ? 'Recalculating...' : 'Recalculate Match'}</span>
+          </button>
+        </div>
+
+        {matchError && (
+          <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs">
+            {matchError}
+          </div>
+        )}
+
+        {!matchResult ? (
+          <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+            <p className="text-xs text-slate-500 mb-3">No match score calculated yet for this application.</p>
+            <button
+              onClick={handleRecalculateMatch}
+              disabled={recalculatingMatch}
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition"
+            >
+              {recalculatingMatch ? 'Analyzing...' : 'Run Match Analysis Now'}
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Component Breakdown Progress Bars */}
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4">
+                Score Component Breakdown (Formula Weights)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 1. Required Skills */}
+                <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-100 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-800">
+                      Required Skills{' '}
+                      <span className="text-slate-400 font-normal">
+                        ({matchResult.breakdown?.components?.required_skills?.weight_pct || 40}%)
+                      </span>
+                    </span>
+                    <span className="font-extrabold text-slate-900">
+                      {matchResult.breakdown?.components?.required_skills?.score ?? 0}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-indigo-600 h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${matchResult.breakdown?.components?.required_skills?.score ?? 0}%`,
+                      }}
+                    ></div>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    {matchResult.breakdown?.components?.required_skills?.note || 'Technical requirements overlap.'}
+                  </p>
+                </div>
+
+                {/* 2. Optional Skills */}
+                <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-100 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-800">
+                      Optional Skills{' '}
+                      <span className="text-slate-400 font-normal">
+                        ({matchResult.breakdown?.components?.optional_skills?.weight_pct || 15}%)
+                      </span>
+                    </span>
+                    <span className="font-extrabold text-slate-900">
+                      {matchResult.breakdown?.components?.optional_skills?.score ?? 0}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-blue-600 h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${matchResult.breakdown?.components?.optional_skills?.score ?? 0}%`,
+                      }}
+                    ></div>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    {matchResult.breakdown?.components?.optional_skills?.note || 'Bonus qualifications.'}
+                  </p>
+                </div>
+
+                {/* 3. Text Semantic Similarity */}
+                <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-100 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-800">
+                      Semantic Similarity (TF-IDF){' '}
+                      <span className="text-slate-400 font-normal">
+                        ({matchResult.breakdown?.components?.text_similarity?.weight_pct || 25}%)
+                      </span>
+                    </span>
+                    <span className="font-extrabold text-slate-900">
+                      {matchResult.breakdown?.components?.text_similarity?.score ?? 0}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-emerald-600 h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${matchResult.breakdown?.components?.text_similarity?.score ?? 0}%`,
+                      }}
+                    ></div>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    {matchResult.breakdown?.components?.text_similarity?.note || 'Cosine similarity.'}
+                  </p>
+                </div>
+
+                {/* 4. Experience & Education Alignment */}
+                <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-100 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-800">
+                      Experience &amp; Education{' '}
+                      <span className="text-slate-400 font-normal">(20%)</span>
+                    </span>
+                    <span className="font-extrabold text-slate-900">
+                      {Math.round(
+                        ((matchResult.experience_score || 0) + (matchResult.education_score || 0)) / 2
+                      )}
+                      %
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-amber-600 h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.round(
+                          ((matchResult.experience_score || 0) + (matchResult.education_score || 0)) / 2
+                        )}%`,
+                      }}
+                    ></div>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Target level: {matchResult.breakdown?.components?.experience_alignment?.target_level || 'N/A'}.{' '}
+                    {matchResult.breakdown?.components?.experience_alignment?.note}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Matched vs Missing Skills */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+              {/* Matched Skills */}
+              <div className="border border-emerald-100 bg-emerald-50/30 rounded-xl p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Matching Technical Skills ({matchResult.matching_skills?.length || 0})
+                  </h4>
+                </div>
+                {matchResult.matching_skills && matchResult.matching_skills.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {matchResult.matching_skills.map((skill, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200"
+                      >
+                        ✓ {skill}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic">No skills currently match job requirements.</p>
+                )}
+              </div>
+
+              {/* Missing Skills */}
+              <div className="border border-rose-100 bg-rose-50/30 rounded-xl p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-rose-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <svg className="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                      />
+                    </svg>
+                    Missing Job Skills ({matchResult.missing_skills?.length || 0})
+                  </h4>
+                </div>
+                {matchResult.missing_skills && matchResult.missing_skills.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {matchResult.missing_skills.map((skill, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-100 text-rose-800 border border-rose-200"
+                      >
+                        + {skill}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic">Candidate possesses all listed job skills!</p>
+                )}
+              </div>
+            </div>
+
+            {/* Ethical AI Disclaimer */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-3">
+              <svg className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div className="text-[11px] text-slate-600 leading-relaxed">
+                <strong className="font-semibold text-slate-800">Scoring Methodology &amp; Ethics Notice: </strong>
+                {matchResult.breakdown?.disclaimer ||
+                  'This score is calculated algorithmically using deterministic skill matching and TF-IDF text similarity to assist human recruiters in screening. It is not an automated hiring decision or guarantee.'}
+                <div className="mt-1 text-[10px] text-slate-400">
+                  Calculated at: {new Date(matchResult.calculated_at).toLocaleString()}
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

@@ -1,8 +1,36 @@
 from rest_framework import serializers
 from apps.accounts.serializers import UserSerializer
 from apps.jobs.models import JobPosting, JobStatus
-from .models import Application, ApplicationStatus, ParsingStatus, Resume
+from .models import Application, ApplicationStatus, JobApplicationMatch, ParsingStatus, Resume
+from .services.matching_engine import compute_and_save_match
 from .services.resume_parser import validate_resume_file, parse_resume_instance
+
+
+class JobApplicationMatchSerializer(serializers.ModelSerializer):
+    """
+    Serializer for explainable AI match calculation and breakdown.
+    """
+
+    job_title = serializers.CharField(source="application.job.title", read_only=True)
+    candidate_name = serializers.CharField(source="application.candidate.get_full_name", read_only=True)
+
+    class Meta:
+        model = JobApplicationMatch
+        fields = [
+            "id",
+            "overall_score",
+            "skills_score",
+            "similarity_score",
+            "experience_score",
+            "education_score",
+            "matching_skills",
+            "missing_skills",
+            "breakdown",
+            "job_title",
+            "candidate_name",
+            "calculated_at",
+        ]
+        read_only_fields = fields
 
 
 class ResumeSerializer(serializers.ModelSerializer):
@@ -45,6 +73,8 @@ class ApplicationListSerializer(serializers.ModelSerializer):
 
     parsed_skills = serializers.SerializerMethodField()
     parsing_status = serializers.CharField(source="resume.parsing_status", read_only=True)
+    match_score = serializers.SerializerMethodField()
+    matching_skills_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Application
@@ -63,6 +93,8 @@ class ApplicationListSerializer(serializers.ModelSerializer):
             "cover_note",
             "parsed_skills",
             "parsing_status",
+            "match_score",
+            "matching_skills_count",
             "created_at",
             "updated_at",
         ]
@@ -72,6 +104,16 @@ class ApplicationListSerializer(serializers.ModelSerializer):
         if hasattr(obj, "resume") and obj.resume and obj.resume.parsed_data:
             return obj.resume.parsed_data.get("skills", [])[:8]
         return []
+
+    def get_match_score(self, obj):
+        if hasattr(obj, "match_result") and obj.match_result:
+            return obj.match_result.overall_score
+        return None
+
+    def get_matching_skills_count(self, obj):
+        if hasattr(obj, "match_result") and obj.match_result:
+            return len(obj.match_result.matching_skills or [])
+        return 0
 
 
 class ApplicationDetailSerializer(serializers.ModelSerializer):
@@ -87,6 +129,7 @@ class ApplicationDetailSerializer(serializers.ModelSerializer):
 
     candidate = UserSerializer(read_only=True)
     resume = ResumeSerializer(read_only=True)
+    match_result = JobApplicationMatchSerializer(read_only=True)
 
     class Meta:
         model = Application
@@ -101,6 +144,7 @@ class ApplicationDetailSerializer(serializers.ModelSerializer):
             "status",
             "cover_note",
             "resume",
+            "match_result",
             "created_at",
             "updated_at",
         ]
@@ -166,6 +210,12 @@ class ApplicationSubmissionSerializer(serializers.Serializer):
 
         # 3. Synchronously extract text and detect skills
         parse_resume_instance(resume)
+
+        # 4. Synchronously compute initial explainable AI match
+        try:
+            compute_and_save_match(application)
+        except Exception:
+            pass
 
         return application
 

@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import (
     ApplicationDetailView,
+    ApplicationMatchView,
     CandidateApplicationsListView,
     JobApplicantsListView,
     JobApplicationSubmitView,
@@ -17,4 +18,7 @@ urlpatterns = [
     path("jobs/<uuid:id>/applications/", JobApplicantsListView.as_view(), name="job_applicants"),
     # Application detail & status update
     path("applications/<uuid:id>/", ApplicationDetailView.as_view(), name="application_detail"),
+    # Application explainable AI match calculation & retrieval
+    path("applications/<uuid:id>/match/", ApplicationMatchView.as_view(), name="application_match"),
 ]
+
