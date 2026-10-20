@@ -1,6 +1,7 @@
 # HireFlow — AI-Powered Recruitment Management Platform
 
-[![CI/CD Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/rohitparmar08)
+[![Repository](https://img.shields.io/badge/github-rohitparmar08%2Fhireflow-blue?logo=github)](https://github.com/rohitparmar08/hireflow)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/rohitparmar08/hireflow)
 [![Backend Tests](https://img.shields.io/badge/django%20tests-49%2F49%20passed-success.svg)](https://github.com/rohitparmar08)
 [![Frontend](https://img.shields.io/badge/frontend-React%2019%20%2B%20Vite%208-blue.svg)](https://github.com/rohitparmar08)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
