@@ -1,258 +1,281 @@
 # HireFlow — AI-Powered Recruitment Management Platform
 
-HireFlow is a modern, full-stack recruitment and applicant tracking platform featuring role-based workflows, resume parsing, and explainable AI-assisted candidate-to-job matching.
+[![CI/CD Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/rohitparmar08)
+[![Backend Tests](https://img.shields.io/badge/django%20tests-49%2F49%20passed-success.svg)](https://github.com/rohitparmar08)
+[![Frontend](https://img.shields.io/badge/frontend-React%2019%20%2B%20Vite%208-blue.svg)](https://github.com/rohitparmar08)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+HireFlow is an enterprise-grade, full-stack applicant tracking and recruitment management platform (ATS). Built with **Django REST Framework**, **React 19**, **Tailwind CSS**, and a **Python Scikit-Learn NLP AI matching engine**, it provides role-based workflows for job seekers and hiring teams, automated resume ingestion (PDF/DOCX), and explainable candidate-to-job qualification scoring.
 
 ---
 
-## 🛠️ Tech Stack
-
-- **Frontend**: React 19, Vite, Tailwind CSS, React Router, Axios
-- **Backend**: Django 5, Django REST Framework (DRF), SimpleJWT
-- **Database**: PostgreSQL (Production-ready via `DATABASE_URL`) / SQLite (Zero-friction local dev fallback)
-- **Authentication**: JWT (JSON Web Tokens via SimpleJWT with 15m access / 7d refresh, rotation, & blacklist)
-- **API Architecture**: Versioned REST API (`/api/v1/`) with CORS headers configured
-
----
-
-## 📂 Project Structure
+## 🏗️ Architecture & Technology Stack
 
 ```
-hireflow/
-├── backend/
-│   ├── .env.example            # Backend environment variable template
-│   ├── manage.py               # Django management script
-│   ├── requirements.txt        # Backend dependencies
-│   ├── config/                 # Project configuration
-│   │   ├── settings/
-│   │   │   ├── base.py         # Shared base configuration & SimpleJWT setup
-│   │   │   ├── local.py        # Local development (SQLite, DEBUG=True)
-│   │   │   └── production.py   # Production (PostgreSQL, security headers)
-│   │   ├── urls.py             # Root URL routing (/api/v1/)
-│   │   ├── wsgi.py
-│   │   └── asgi.py
-│   └── apps/
-│       ├── core/               # Health check and core metadata endpoints
-│       ├── accounts/           # Custom User model, SimpleJWT auth, RBAC, profile endpoints
-│       ├── jobs/               # JobPosting model, REST CRUD APIs, filters, pagination, admin
-│       └── applications/       # Application & Resume models, PDF/DOCX ingestion parser, RBAC pipeline
-├── frontend/
-│   ├── .env.example            # Frontend environment variable template
-│   ├── package.json            # React 19, Tailwind CSS, Axios, React Router
-│   ├── vite.config.js          # Vite build config
-│   ├── tailwind.config.js      # Tailwind CSS configuration
-│   ├── postcss.config.js
-│   └── src/
-│       ├── api/                # Axios instance, auth interceptors & API services (auth, jobs, applications)
-│       ├── context/            # AuthContext (login, register, logout, profile state)
-│       ├── routes/             # ProtectedRoute & RoleGuard components
-│       ├── components/         # Navbar, badges, layout primitives
-│       ├── pages/
-│       │   ├── auth/           # Login, Register
-│       │   ├── jobs/           # JobListing (public board), JobDetail (with Apply modal)
-│       │   ├── recruiter/      # RecruiterDashboard, JobApplicants (pipeline view), CreateJob, EditJob
-│       │   ├── candidate/      # CandidateDashboard, MyApplications (tracker & withdraw)
-│       │   ├── applications/   # ApplicationDetail (recruiter decision panel & candidate view)
-│       │   ├── LandingPage.jsx
-│       │   └── Profile.jsx
-│       └── App.jsx             # React Router hierarchy
-├── .gitignore                  # Git ignore rules for Python, Node, and secrets
-└── README.md                   # Setup documentation & developer guide
++-----------------------------------------------------------------------------------+
+|                                 CLIENT TIER                                       |
+|  React 19 + Vite 8 + Tailwind CSS + React Router v7 + Axios Interceptors          |
+|  - Role-Based Portals (Recruiter vs Candidate)                                    |
+|  - Interactive Skill Tag Builder & Document Dropzone Uploads                      |
+|  - Real-time Visual Match Score Breakdown & Candidate Ranker                      |
++-----------------------------------------+-----------------------------------------+
+                                          |
+                      HTTPS / JSON REST   | JWT Bearer Token (15m access / 7d refresh)
+                                          v
++-----------------------------------------------------------------------------------+
+|                                 GATEWAY TIER                                      |
+|  Nginx Alpine Reverse Proxy + WhiteNoise Static Compression + SSL Termination     |
+|  - Security Headers (HSTS, CSP, X-Frame-Options: DENY, XSS-Protection)           |
+|  - Client-Side SPA Route Fallback & Streamed Proxying                             |
++-----------------------------------------+-----------------------------------------+
+                                          |
+                                          v
++-----------------------------------------------------------------------------------+
+|                                APPLICATION TIER                                   |
+|  Django 5 + Django REST Framework + Gunicorn WSGI Workers (Multi-threaded)        |
+|  - Custom User Model (RBAC: RECRUITER / CANDIDATE)                                |
+|  - Job Management (Draft / Active / Closed lifecycles, full-text filters)         |
+|  - Resume Ingestion Engine (PyPDF + Python-docx, signature validation, safe UUID)  |
+|  - Explainable AI Match Engine (Scikit-Learn TF-IDF, Cosine Similarity, Taxonomy) |
+|  - Authenticated Document Streaming (Private FileResponse with Object-Level RBAC)|
++-------------------+---------------------------------------+-----------------------+
+                    |                                       |
+                    v                                       v
++-----------------------------------+   +-------------------------------------------+
+|          DATABASE TIER            |   |               STORAGE TIER                |
+|  PostgreSQL 16 (Production)       |   |  Private Resumes Storage (Encrypted Disks)|
+|  SQLite 3 (Zero-Friction Dev)     |   |  Object-Level Permission Controlled Access|
++-----------------------------------+   +-------------------------------------------+
 ```
 
----
-
-## 🔐 API Endpoints Reference
-
-All endpoints are versioned under `/api/v1/`:
-
-### Authentication & User Management (`/api/v1/auth/`)
-| Method | Endpoint | Access | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/auth/register/` | Public | Register new user as `RECRUITER` or `CANDIDATE`. Returns tokens and user data. |
-| `POST` | `/api/v1/auth/login/` | Public | Obtain access token (15 min) and refresh token (7 days). Returns user profile. |
-| `POST` | `/api/v1/auth/refresh/` | Public | Refresh expired access token with automatic token rotation. |
-| `POST` | `/api/v1/auth/logout/` | Authenticated | Blacklists the refresh token preventing reuse. |
-| `GET` | `/api/v1/auth/me/` | Authenticated | Retrieve current user profile and role. |
-| `PATCH` | `/api/v1/auth/profile/` | Authenticated | Update profile details. Role escalation is forbidden. |
-
-### Job Postings & Management (`/api/v1/jobs/` & `/api/v1/recruiter/jobs/`)
-| Method | Endpoint | Access | Description |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/jobs/` | Public | List active job openings. Supports pagination, keyword search, and filters. |
-| `GET` | `/api/v1/jobs/{id}/` | Public / Owner | View job details (active jobs are public; draft/closed jobs restricted to owner). |
-| `POST` | `/api/v1/jobs/` | Recruiter Only | Create a new job opening (`ACTIVE` or `DRAFT`). Owner assigned automatically. |
-| `PATCH` | `/api/v1/jobs/{id}/` | Recruiter (Owner) | Partially update a job posting. |
-| `PUT` | `/api/v1/jobs/{id}/` | Recruiter (Owner) | Fully update a job posting. |
-| `DELETE` | `/api/v1/jobs/{id}/` | Recruiter (Owner) | Soft-delete / Archive job to `CLOSED` status. |
-| `GET` | `/api/v1/recruiter/jobs/`| Recruiter Only | View personal job openings across all statuses (`?status=ACTIVE\|DRAFT\|CLOSED`). |
-
-#### Supported Filter & Search Query Parameters for `GET /api/v1/jobs/`:
-- `search`: Case-insensitive search on title, company name, or description.
-- `location`: Location substring search.
-- `location_type`: `REMOTE`, `HYBRID`, or `ONSITE`.
-- `employment_type`: `FULL_TIME`, `PART_TIME`, `CONTRACT`, or `INTERNSHIP`.
-- `experience_level`: `ENTRY`, `MID`, `SENIOR`, `LEAD`, or `EXECUTIVE`.
-- `skill`: Matches required or optional skills.
-- `min_salary`: Minimum salary filter.
-- `page`: Page number for pagination.
-
-### Candidate Applications & Resume Parsing (`/api/v1/jobs/{id}/apply/`, `/api/v1/applications/`)
-| Method | Endpoint | Access | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/jobs/{id}/apply/` | Candidate Only | Submit application with resume (multipart upload: PDF/DOCX, <= 5 MB, magic byte check) and optional cover note. Validates one application per candidate per job. Automatically triggers deterministic resume parsing and AI matching. |
-| `GET` | `/api/v1/candidate/applications/` | Candidate Only | Retrieve candidate's personal application history with status filter (`?status=SUBMITTED\|IN_REVIEW\|SHORTLISTED\|REJECTED\|WITHDRAWN`). Includes computed AI match score. |
-| `GET` | `/api/v1/jobs/{id}/applications/` | Recruiter (Job Owner) | List applicants for a specific job posting with resume parsing status, detected skill previews, and match scores. Supports sorting (`?ordering=-match_score\|match_score\|-created_at`) and score threshold filtering (`?min_score=80`). |
-| `GET` | `/api/v1/applications/{id}/` | Candidate Applicant \| Job Recruiter | View detailed application info, including parsed resume entities, cover note, candidate profile, and full AI match breakdown. |
-| `PATCH` | `/api/v1/applications/{id}/` | Candidate Applicant \| Job Recruiter | Update application status. Recruiters can transition to `IN_REVIEW`, `SHORTLISTED`, or `REJECTED`. Candidates can transition to `WITHDRAWN`. |
-| `GET` | `/api/v1/applications/{id}/resume/` | Candidate Applicant \| Job Recruiter | Securely stream candidate's uploaded resume file with attachment headers. Prevents public media exposure and path traversal; unauthorized users blocked with 403. |
-
-
-### AI Matching Engine & Explainable Insights (`/api/v1/applications/{id}/match/`)
-| Method | Endpoint | Access | Description |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/applications/{id}/match/` | Candidate Applicant \| Job Recruiter | Retrieve persisted AI match result, component breakdown, matching skills, and missing skills. Computes on-the-fly if not previously stored. |
-| `POST` | `/api/v1/applications/{id}/match/` | Candidate Applicant \| Job Recruiter | Force recalculate and refresh the resume-to-job match score and explainable breakdown. |
+### Core Technologies
+- **Frontend**: React 19, Vite 8.3, Tailwind CSS v3, React Router v7, Axios.
+- **Backend**: Python 3.12/3.14, Django 5.1, Django REST Framework 3.15, Gunicorn 23.
+- **Authentication**: JWT via SimpleJWT (Token Rotation, Blacklist Revocation, HttpOnly cookies ready).
+- **AI / NLP**: Scikit-Learn (TF-IDF Vectorization, Bi-Gram Tokenizer, Cosine Similarity), PyPDF, Python-docx.
+- **Production Static Serving**: WhiteNoise 6.8 with Manifest Compression (`CompressedManifestStaticFilesStorage`).
+- **Database**: PostgreSQL 16 (Production via `dj-database-url`), SQLite (Local development fallback).
+- **Containerization**: Docker, Docker Compose, Multi-stage unprivileged containers, Nginx Alpine.
 
 ---
 
-## 🧠 AI Matching Engine & Scoring Methodology
+## 🌟 Key Features
 
-HireFlow incorporates an explainable, deterministic AI matching pipeline that runs locally without external paid APIs, black-box hallucinations, or proprietary data leakage.
+### 1. Role-Based Access Control (RBAC)
+- **Two First-Class Roles**: `CANDIDATE` (Job Seekers) and `RECRUITER` (Hiring Managers).
+- **Strict Separation**: Candidates cannot create jobs or view other candidates' applications; recruiters cannot apply for jobs and can only access applications submitted to their own job postings.
+- **Immutable Credentials**: Primary email identities and roles are protected against privilege escalation.
 
-### 1. Mathematical Scoring Formula
+### 2. Job Posting & Lifecycle Management
+- **Full REST CRUD**: Create, view, update, and soft-delete/archive job openings.
+- **Status Lifecycle**: `DRAFT` (private work-in-progress), `ACTIVE` (publicly listed on job board), and `CLOSED` (archived, delisted, with applicant history preserved).
+- **Search & Filtering**: Multi-parameter search across titles, companies, locations (Remote, Hybrid, Onsite), employment types (Full-Time, Contract, Internship), and seniority tiers (Entry, Mid, Senior, Lead, Executive).
 
-The overall match score (normalized strictly from **0.0 to 100.0**) is calculated as a weighted linear combination of five transparent components:
+### 3. Resume Ingestion & Parsing Engine
+- **Supported Formats**: Machine-readable PDF (`.pdf`) and Microsoft Word (`.docx`), up to 5 MB.
+- **Validation**: Strict MIME-type checking, file extension whitelist, and binary magic byte verification preventing malware uploads.
+- **Deterministic Information Extraction**: Automatically extracts contact details, degree credentials, and matches against a 150+ canonical technical skill taxonomy.
+- **Private Document Streaming**: Resumes are stored outside public web roots. Files are served exclusively via authenticated `FileResponse` streams enforcing object-level permissions.
 
-$$\text{Overall Score} = (0.40 \times S_{\text{req}}) + (0.15 \times S_{\text{opt}}) + (0.25 \times S_{\text{tfidf}}) + (0.10 \times S_{\text{exp}}) + (0.10 \times S_{\text{edu}})$$
-
-| Component | Weight | Evaluation Method | Description |
-| :--- | :---: | :--- | :--- |
-| **Required Skills** ($S_{\text{req}}$) | **40%** | Exact & case-insensitive taxonomy intersection | $\frac{\|R_{\text{skills}} \cap C_{\text{skills}}\|}{\|R_{\text{skills}}\|} \times 100$. If job lists no required skills, defaults to 100%. |
-| **Optional Skills** ($S_{\text{opt}}$) | **15%** | Exact & case-insensitive taxonomy intersection | $\frac{\|O_{\text{skills}} \cap C_{\text{skills}}\|}{\|O_{\text{skills}}\|} \times 100$. If job lists no optional skills, defaults to 100%. |
-| **Text Similarity** ($S_{\text{tfidf}}$) | **25%** | Scikit-Learn TF-IDF vectorizer + Cosine Similarity | Bi-gram ($n=1,2$) TF-IDF vectorization with English stop words and code-token retention (`C++`, `C#`, `.NET`) comparing job corpus with resume text + cover note. |
-| **Experience Level** ($S_{\text{exp}}$) | **10%** | Seniority keywords & years of experience regex | Compares job target level (`ENTRY`, `MID`, `SENIOR`, `LEAD`, `EXECUTIVE`) against resume indicators. Defaults to 50% neutral baseline if undetectable. |
-| **Education Tier** ($S_{\text{edu}}$) | **10%** | Credential taxonomy matching | Categorizes detected degrees (`Doctorate`: 100%, `Master`: 95%, `Bachelor`: 85%, `Associate`: 70%). Defaults to 55% baseline if no degree stated. |
-
-### 2. Explainability & Breakdown JSON
-Every match returns a complete audit breakdown:
-- Explicit weights and numeric contributions for each factor.
-- Plain-English narrative notes explaining why each score was awarded.
-- Distinct lists of **matching skills** (verified) and **missing skills** (actionable gap analysis).
-- Strict degradation: unreadable documents or failed extractions cleanly receive a 0.0 score with descriptive error reasons.
-
-### 3. Limitations & Ethical Guardrails
-- **No Soft Skill Assessment**: The model evaluates technical skills and document text; it does not measure communication, culture fit, or emotional intelligence.
-- **Document Format Dependency**: Text extraction depends on machine-readable PDFs and DOCX files. Image-based or scanned PDFs without OCR yield unreadable status.
-- **Human-in-the-Loop Screening**: The platform surfaces scores as an assistive screening aid; it does not automate rejection or selection.
+### 4. Explainable AI Match Engine
+- **No Hallucinations**: Runs locally without external paid APIs, black-box hallucinations, or third-party data leakage.
+- **Transparent Formula**: Normalized score (0.0 to 100.0) combining:
+  - **40% Required Skills**: Exact taxonomy intersection against required tags.
+  - **15% Optional Skills**: Bonus taxonomy intersection against nice-to-have tags.
+  - **25% Text Similarity**: Bi-gram TF-IDF vectorizer + Cosine Similarity comparing resume corpus and cover note against job description.
+  - **10% Experience Level**: Seniority keyword detection and years-of-experience regex matching.
+  - **10% Education Tier**: Degree credential taxonomy classification.
+- **Full Explainability**: Surfaces exact matching skills, actionable missing skills, component contributions, and plain-English narrative justifications.
 
 ---
 
-## 🚀 Quickstart Guide
+## 🔐 API Reference
 
-### 1. Prerequisites
-- **Python**: 3.10+ (tested with Python 3.14)
-- **Node.js**: v18+ (tested with Node v24, npm 11+)
-- **Git**
+All REST endpoints are versioned under `/api/v1/`:
+
+| Method | Endpoint | Access | Purpose |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/health/` or `/healthz/` | Public | Container health probe & database connection check |
+| `POST` | `/api/v1/auth/register/` | Public | Register as Candidate or Recruiter |
+| `POST` | `/api/v1/auth/login/` | Public | Obtain 15-min JWT access token & 7-day refresh token |
+| `POST` | `/api/v1/auth/refresh/` | Public | Refresh access token with automatic token rotation |
+| `POST` | `/api/v1/auth/logout/` | Authenticated | Blacklist refresh token preventing reuse |
+| `GET` | `/api/v1/auth/me/` | Authenticated | Retrieve current user profile and role |
+| `PATCH`| `/api/v1/auth/profile/` | Authenticated | Update user profile details (role is immutable) |
+| `GET` | `/api/v1/jobs/` | Public | Search and filter active job openings |
+| `GET` | `/api/v1/jobs/{id}/` | Public / Owner | View job details (drafts restricted to owner) |
+| `POST` | `/api/v1/jobs/` | Recruiter | Post new job opening (`ACTIVE` or `DRAFT`) |
+| `PATCH`| `/api/v1/jobs/{id}/` | Recruiter (Owner)| Edit existing job posting |
+| `DELETE`| `/api/v1/jobs/{id}/` | Recruiter (Owner)| Archive/Close job posting |
+| `GET` | `/api/v1/recruiter/jobs/`| Recruiter | List recruiter's own jobs across all statuses |
+| `POST` | `/api/v1/jobs/{id}/apply/`| Candidate | Upload resume document & apply for opening |
+| `GET` | `/api/v1/candidate/applications/` | Candidate | View candidate's application history & scores |
+| `GET` | `/api/v1/jobs/{id}/applications/` | Recruiter (Owner)| Pipeline view with applicant ranker & filters |
+| `GET` | `/api/v1/applications/{id}/` | Applicant \| Owner | View application detail & AI score breakdown |
+| `PATCH`| `/api/v1/applications/{id}/` | Applicant \| Owner | Transition application status (`SHORTLISTED`, etc.) |
+| `GET` | `/api/v1/applications/{id}/resume/` | Applicant \| Owner | Stream authenticated private resume document |
+| `GET` | `/api/v1/applications/{id}/match/` | Applicant \| Owner | Inspect explainable AI match calculation |
+| `POST` | `/api/v1/applications/{id}/match/` | Applicant \| Owner | Force recalculate and refresh AI match score |
 
 ---
 
-### 2. Backend Setup
+## 🐳 Docker & Production Deployment
+
+HireFlow includes multi-container Docker configuration with unprivileged non-root security and persistent volumes.
+
+### 1. Docker Compose (Local Production Simulation)
 
 ```bash
-# Navigate to the backend directory
+# Clone the repository
+git clone https://github.com/rohitparmar08/hireflow.git
+cd hireflow
+
+# Copy environment template
+cp .env.example .env
+
+# Build and start all services in detached mode
+docker compose up -d --build
+
+# View logs across all services
+docker compose logs -f
+
+# Verify service health
+docker compose ps
+```
+
+Services exposed:
+- **Frontend SPA**: `http://localhost:3000` (Nginx Alpine reverse proxy)
+- **Backend API**: `http://localhost:8000` (Gunicorn WSGI)
+- **PostgreSQL Database**: `localhost:5432` (PostgreSQL 16 Alpine)
+- **Health Check**: `http://localhost:8000/health/`
+
+To shut down containers and preserve data:
+```bash
+docker compose down
+```
+
+---
+
+### 2. Cloud Deployment (Render Blueprint)
+
+HireFlow includes a complete Infrastructure-as-Code `render.yaml` blueprint for 1-click cloud deployment:
+
+1. Fork or push this repository to your GitHub account (`rohitparmar08/hireflow`).
+2. Log in to [Render](https://render.com) and click **New +** -> **Blueprint**.
+3. Select the `hireflow` repository.
+4. Render automatically provisions:
+   - **PostgreSQL Database**: Free managed PostgreSQL (`hireflow-postgres`).
+   - **Backend Web Service**: Python 3 runtime, auto-runs migrations and WhiteNoise `collectstatic`.
+   - **Frontend Static Site**: Node build, Nginx-equivalent routing with SPA fallback.
+   - **Persistent Disk**: Mounted at `/app/media` for secure resume storage.
+
+---
+
+## 💻 Local Developer Setup
+
+### Prerequisites
+- Python 3.10+ (tested with Python 3.12 and 3.14)
+- Node.js 18+ (tested with Node 20 and 24, npm 11+)
+- Git
+
+### 1. Backend Setup
+
+```bash
 cd hireflow/backend
 
-# Activate the virtual environment
-# On Windows (PowerShell):
+# Create and activate virtual environment
+# Windows:
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-# On macOS/Linux:
+# macOS/Linux:
+python3 -m venv .venv
 source .venv/bin/activate
 
-# Install backend dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# Run database migrations
+# Run migrations (defaults to SQLite locally)
 python manage.py migrate
 
-# Run the test suite (24 automated tests across core, accounts, and jobs)
+# Run automated test suite (49 unit, integration & security tests)
 python manage.py test
 
-# Start the development server
+# Verify production deployment readiness
+python manage.py check --deploy
+
+# Start Django development server
 python manage.py runserver 127.0.0.1:8000
 ```
-The backend API is now running at `http://127.0.0.1:8000/`.
 
----
-
-### 3. Frontend Setup
-
-In a new terminal window:
+### 2. Frontend Setup
 
 ```bash
-# Navigate to the frontend directory
 cd hireflow/frontend
 
-# Install dependencies (if not already installed)
+# Install npm packages
 npm install
 
-# Start the Vite development server
+# Start Vite dev server with hot module replacement (HMR)
 npm run dev
+
+# Run production build
+npm run build
 ```
-The frontend is now running at `http://localhost:5173/`. Open this URL in your browser to test job browsing, searching, filtering, posting jobs as a recruiter, and role-based views.
+
+Open `http://localhost:5173` in your browser.
 
 ---
 
-## 🧪 Testing & Verification
+## 🧪 Automated Test Suite & Security Verification
 
-1. **Automated Backend Test Suite**:
-   ```bash
-   cd hireflow/backend
-   .\.venv\Scripts\python.exe manage.py test
-   ```
-   Runs 49 automated tests covering:
-   - Secure resume document downloads (`/applications/{id}/resume/`) restricted to participants
-   - Rejection of spoofed files, unsupported executable extensions, and empty 0-byte resumes
-   - Integrity enforcement preventing withdrawal of already rejected applications
-   - Atomic protection against concurrent duplicate job applications
-   - Explainable AI matching score calculation across 0.0 to 100.0 bounds
-   - Deterministic and reproducible scoring across identical inputs
-   - Exact and case-insensitive skill taxonomy matching and missing skills identification
-   - TF-IDF bi-gram cosine similarity and experience/education tiering
-   - Graceful degradation for unreadable or incomplete resume data
-   - Automatic match calculation upon candidate application submission
-   - Match endpoint authorization (`/applications/{id}/match/`) for candidates and job recruiters
-   - Protection against unauthorized match retrieval or recalculation attempts
-   - Recruiter applicant sorting by match score (`?ordering=-match_score`) and score threshold filtering
-   - Application submission with resume upload and duplicate application prevention
-   - Resume validation (file type, 5 MB limit, magic signature verification)
-   - Resilient parsing (email, phone, degree detection, 150+ standard skills taxonomy)
-   - Application status updates and RBAC transitions (Recruiter vs Candidate)
-   - Candidate isolation (cannot access others' applications)
-   - Closed job protection (prevents new applications while preserving history)
-   - Public access to active jobs and draft job hiding
-   - Recruiter job creation, editing, and archive/closing
-   - Candidate and anonymous posting restrictions
-   - Ownership enforcement (Recruiter A cannot alter Recruiter B's jobs)
-   - Multi-parameter search, filtering, and pagination
-   - Salary range and skill tag validation
-   - JWT authentication, refresh rotation, and logout blacklisting
-   - API root and health check endpoints
+The automated test suite runs 49 tests validating all core domain modules, API contracts, security permissions, and AI algorithms:
 
-2. **Frontend Production Build**:
-   ```bash
-   cd hireflow/frontend
-   npm run build
-   ```
+```text
+Ran 49 tests in 87.879s
+OK
+System check identified no issues (0 silenced).
+```
+
+### Tested Domains:
+1. **Authentication & RBAC**: User registration, password validation, SimpleJWT refresh rotation, blacklist invalidation, immutable role protection.
+2. **Job Management**: Public visibility rules, draft status hiding, recruiter ownership boundaries, multi-field search and taxonomy filters.
+3. **Application Ingestion**: Duplicate submission prevention, PDF/DOCX magic signature verification, 5 MB file size limit enforcement, safe UUID storage filenames.
+4. **Document Privacy**: Streamed resume downloads restricted exclusively to the applicant and job owner; 403 Forbidden on unauthorized access; path traversal immunity.
+5. **AI Matching Accuracy**: Bounded 0.0–100.0 scoring, deterministic reproducibility, case-insensitive taxonomy intersection, TF-IDF bi-gram cosine similarity, and graceful degradation on unreadable files.
 
 ---
 
-## 🗺️ Implementation Roadmap
+## 📋 Environment Variables Reference
 
-- [x] **Phase 1: Foundation & Tooling Setup**
-- [x] **Phase 2: Authentication, Custom User Model & RBAC**
-- [x] **Phase 3: Job Management Module**
-- [x] **Phase 4: Candidate Application Flow & Resume Ingestion Engine**
-- [x] **Phase 5: AI Resume-to-Job Matching Engine & Explainable Scoring**
-- [x] **Phase 6: Security Audit, Bug Fixes & End-to-End Integration**
-- [ ] **Phase 7: Recruiter Review Pipeline & AI Insights UI Enhancements**
-- [ ] **Phase 8: Production Deployment Hardening & Final Portfolio Release**
+| Variable | Scope | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `DJANGO_SECRET_KEY` | Backend | None (Required in Prod) | 50+ character cryptographic secret key |
+| `DJANGO_DEBUG` | Backend | `False` | Debug mode (must be `False` in production) |
+| `DJANGO_SETTINGS_MODULE` | Backend | `config.settings.production`| Active Django settings module |
+| `DJANGO_ALLOWED_HOSTS` | Backend | `localhost,127.0.0.1` | Comma-separated allowed hostnames |
+| `DATABASE_URL` | Backend | `sqlite:///db.sqlite3` | PostgreSQL connection string |
+| `CORS_ALLOWED_ORIGINS` | Backend | `http://localhost:5173` | Comma-separated allowed client origins |
+| `CSRF_TRUSTED_ORIGINS` | Backend | Matches CORS origins | Comma-separated trusted origins for CSRF |
+| `DJANGO_SECURE_SSL_REDIRECT`| Backend | `False` (behind proxy) | Redirect HTTP to HTTPS |
+| `VITE_API_BASE_URL` | Frontend | `http://localhost:8000/api/v1`| Backend API root URL |
+
+---
+
+## 📄 Portfolio & Resume Summary
+
+**Project Title**: HireFlow — AI-Powered Recruitment Management Platform  
+**Author**: Rohit Parmar ([@rohitparmar08](https://github.com/rohitparmar08))  
+
+### Highlights:
+- Architected and built an end-to-end recruitment platform using **React 19, Django 5, DRF, PostgreSQL, and Scikit-Learn**.
+- Implemented **JWT authentication with automatic token rotation** and role-based access control (RBAC) isolating candidate and recruiter workflows.
+- Engineered a **deterministic, explainable AI resume-to-job matching engine** combining TF-IDF bi-gram cosine similarity with canonical skill taxonomy matching.
+- Developed an automated resume ingestion pipeline supporting PDF/DOCX format verification, file signature validation, and safe UUID document streaming.
+- Built a modern, accessible UI with Tailwind CSS, interactive skill tag builders, live candidate rankers, and dynamic dashboard metrics.
+- Hardened for production with **WhiteNoise static compression**, Gunicorn multi-threading, Docker multi-stage containers, and 100% test pass rate across 49 automated test cases.
+
+---
+
+## 📜 License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
