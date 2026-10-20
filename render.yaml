@@ -42,7 +42,6 @@ services:
   - type: web
     name: hireflow-frontend
     runtime: static
-    region: oregon
     plan: free
     rootDir: frontend
     buildCommand: "npm install && npm run build"
