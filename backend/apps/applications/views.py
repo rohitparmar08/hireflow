@@ -1,10 +1,13 @@
+import re
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
 
 from apps.accounts.permissions import IsRecruiter
 from apps.jobs.models import JobPosting
@@ -180,4 +183,40 @@ class ApplicationMatchView(APIView):
         match_record = compute_and_save_match(application)
         serializer = JobApplicationMatchSerializer(match_record)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ResumeDownloadView(APIView):
+    """
+    GET /api/v1/applications/{id}/resume/
+    Securely downloads the candidate's uploaded resume document.
+    Enforces object-level RBAC: Only the applicant candidate or the owning recruiter can access.
+    Streams using FileResponse with secure headers to prevent path traversal or public media leaks.
+    """
+
+    permission_classes = [IsAuthenticated, IsApplicationParticipant]
+
+    def get(self, request, id, *args, **kwargs):
+        application = get_object_or_404(
+            Application.objects.select_related("job", "candidate", "resume"),
+            id=id,
+        )
+        self.check_object_permissions(request, application)
+
+        resume = getattr(application, "resume", None)
+        if not resume or not resume.file:
+            raise NotFound("No resume document found for this application.")
+
+        try:
+            file_handle = resume.file.open("rb")
+        except (FileNotFoundError, OSError):
+            raise NotFound("Resume document file not found on storage.")
+
+        content_type = resume.content_type or "application/octet-stream"
+        safe_filename = re.sub(r"[^\w\.-]", "_", resume.original_filename or "resume.pdf")
+
+        response = FileResponse(file_handle, content_type=content_type)
+        response["Content-Disposition"] = f'attachment; filename="{safe_filename}"'
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
+
 

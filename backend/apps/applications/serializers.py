@@ -1,3 +1,5 @@
+from django.db import IntegrityError
+from django.urls import reverse
 from rest_framework import serializers
 from apps.accounts.serializers import UserSerializer
 from apps.jobs.models import JobPosting, JobStatus
@@ -39,12 +41,14 @@ class ResumeSerializer(serializers.ModelSerializer):
     """
 
     file_url = serializers.FileField(source="file", read_only=True)
+    download_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Resume
         fields = [
             "id",
             "file_url",
+            "download_url",
             "original_filename",
             "file_size",
             "content_type",
@@ -55,6 +59,14 @@ class ResumeSerializer(serializers.ModelSerializer):
             "uploaded_at",
         ]
         read_only_fields = fields
+
+    def get_download_url(self, obj):
+        url = reverse("applications-v1:resume_download", kwargs={"id": obj.application_id})
+        request = self.context.get("request")
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+
 
 
 class ApplicationListSerializer(serializers.ModelSerializer):
@@ -190,13 +202,18 @@ class ApplicationSubmissionSerializer(serializers.Serializer):
         job = self.context["job"]
         candidate = request.user
 
-        # 1. Create Application
-        application = Application.objects.create(
-            candidate=candidate,
-            job=job,
-            cover_note=cover_note,
-            status=ApplicationStatus.SUBMITTED,
-        )
+        # 1. Create Application (with atomic duplicate conflict protection)
+        try:
+            application = Application.objects.create(
+                candidate=candidate,
+                job=job,
+                cover_note=cover_note,
+                status=ApplicationStatus.SUBMITTED,
+            )
+        except IntegrityError:
+            raise serializers.ValidationError(
+                {"detail": "You have already submitted an application for this job opening."}
+            )
 
         # 2. Create Resume record
         resume = Resume.objects.create(

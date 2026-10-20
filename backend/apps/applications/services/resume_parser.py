@@ -45,13 +45,19 @@ def validate_resume_file(uploaded_file):
     Validate uploaded resume file extension, size cap, and header signatures.
     Raises ValidationError if any condition is violated.
     """
-    filename = uploaded_file.name
+    filename = uploaded_file.name or ""
+    if "\x00" in filename:
+        raise ValidationError("Invalid characters detected in filename.")
+
     ext = Path(filename).suffix.lower()
 
     if ext not in ALLOWED_EXTENSIONS:
         raise ValidationError(
             f"Unsupported file format '{ext}'. Only PDF and DOCX files are accepted."
         )
+
+    if not uploaded_file.size or uploaded_file.size == 0:
+        raise ValidationError("The uploaded resume file is empty.")
 
     if uploaded_file.size > MAX_FILE_SIZE_BYTES:
         max_mb = MAX_FILE_SIZE_BYTES / (1024 * 1024)

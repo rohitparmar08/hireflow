@@ -45,7 +45,25 @@ export const applicationsApi = {
     const response = await apiClient.post(`/applications/${id}/match/`);
     return response.data;
   },
+
+  downloadResume: async (id, filename) => {
+    const response = await apiClient.get(`/applications/${id}/resume/`, {
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data], {
+      type: response.headers['content-type'] || 'application/octet-stream',
+    });
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename || 'resume.pdf';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+  },
 };
+
 
 
 export default applicationsApi;

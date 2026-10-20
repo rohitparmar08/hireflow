@@ -5,6 +5,7 @@ from .views import (
     CandidateApplicationsListView,
     JobApplicantsListView,
     JobApplicationSubmitView,
+    ResumeDownloadView,
 )
 
 app_name = "applications"
@@ -20,5 +21,8 @@ urlpatterns = [
     path("applications/<uuid:id>/", ApplicationDetailView.as_view(), name="application_detail"),
     # Application explainable AI match calculation & retrieval
     path("applications/<uuid:id>/match/", ApplicationMatchView.as_view(), name="application_match"),
+    # Secure, permission-controlled resume download
+    path("applications/<uuid:id>/resume/", ResumeDownloadView.as_view(), name="resume_download"),
 ]
+
 

@@ -119,8 +119,9 @@ export default function App() {
             </Routes>
           </div>
           <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
-            HireFlow &bull; AI-Powered Recruitment Management Platform &bull; Phase 4 Complete
+            HireFlow &bull; AI-Powered Recruitment Management Platform &bull; Production-Ready ATS
           </footer>
+
         </div>
       </AuthProvider>
     </Router>

@@ -106,8 +106,11 @@ def compute_text_similarity(job_corpus: str, resume_corpus: str) -> Tuple[float,
         similarity_val = float(cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0])
         score = round(max(0.0, min(1.0, similarity_val)) * 100.0, 1)
         return score, f"TF-IDF cosine similarity between job and resume text is {score}%."
+    except ValueError:
+        return 0.0, "Text contained insufficient distinct vocabulary to evaluate lexical similarity."
     except Exception as exc:
         return 0.0, f"TF-IDF computation encountered an error: {str(exc)}"
+
 
 
 def evaluate_experience_alignment(job_level: str, resume_text: str) -> Tuple[float, str]:
@@ -266,11 +269,16 @@ def calculate_match_breakdown(
 
     # Blended skills score (proportional to weights of required & optional skills)
     # Required skills are 40% of total score, optional are 15%
-    combined_skills_score = round(
-        (req_score * (weights["required_skills"] / (weights["required_skills"] + weights["optional_skills"])))
-        + (opt_score * (weights["optional_skills"] / (weights["required_skills"] + weights["optional_skills"]))),
-        1,
-    )
+    skills_weight_sum = weights.get("required_skills", 0) + weights.get("optional_skills", 0)
+    if skills_weight_sum > 0:
+        combined_skills_score = round(
+            (req_score * (weights["required_skills"] / skills_weight_sum))
+            + (opt_score * (weights["optional_skills"] / skills_weight_sum)),
+            1,
+        )
+    else:
+        combined_skills_score = 0.0
+
 
     # 5. Component C: TF-IDF Text Similarity
     # Build complete job text corpus

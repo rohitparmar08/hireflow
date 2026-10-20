@@ -64,6 +64,12 @@ class ApiRootView(APIView):
                 },
                 "applications": {
                     "candidate_applications": request.build_absolute_uri("candidate/applications/"),
+                    "job_apply_template": request.build_absolute_uri("jobs/{id}/apply/"),
+                    "job_applicants_template": request.build_absolute_uri("jobs/{id}/applications/"),
+                    "application_detail_template": request.build_absolute_uri("applications/{id}/"),
+                    "match_analysis_template": request.build_absolute_uri("applications/{id}/match/"),
+                    "resume_download_template": request.build_absolute_uri("applications/{id}/resume/"),
                 },
+
             },
         })

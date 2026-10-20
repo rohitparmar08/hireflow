@@ -42,11 +42,13 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
 
     // Do not attempt refresh on auth endpoints (login, register, refresh itself)
-    const isAuthEndpoint = originalRequest.url.includes('/auth/login/') ||
-                           originalRequest.url.includes('/auth/register/') ||
-                           originalRequest.url.includes('/auth/refresh/');
+    const requestUrl = originalRequest?.url || '';
+    const isAuthEndpoint = requestUrl.includes('/auth/login/') ||
+                           requestUrl.includes('/auth/register/') ||
+                           requestUrl.includes('/auth/refresh/');
 
-    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthEndpoint) {
+
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });

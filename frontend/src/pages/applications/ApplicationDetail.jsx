@@ -14,8 +14,10 @@ export default function ApplicationDetail() {
   const [error, setError] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [recalculatingMatch, setRecalculatingMatch] = useState(false);
+  const [downloadingResume, setDownloadingResume] = useState(false);
   const [matchError, setMatchError] = useState('');
   const [showRawText, setShowRawText] = useState(false);
+
 
   const fetchApplication = useCallback(async () => {
     setLoading(true);
@@ -57,6 +59,18 @@ export default function ApplicationDetail() {
       setRecalculatingMatch(false);
     }
   };
+
+  const handleDownloadResume = async () => {
+    setDownloadingResume(true);
+    try {
+      await applicationsApi.downloadResume(id, resume?.original_filename);
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to download resume document.');
+    } finally {
+      setDownloadingResume(false);
+    }
+  };
+
 
   const handleStatusChange = async (newStatus) => {
     setUpdatingStatus(true);
@@ -558,16 +572,30 @@ export default function ApplicationDetail() {
             >
               Extraction: {resume?.parsing_status}
             </span>
-            {resume?.file_url && (
-              <a
-                href={resume.file_url}
-                target="_blank"
-                rel="noreferrer"
-                className="px-3 py-1 rounded text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition"
-              >
-                Download Document
-              </a>
-            )}
+            <button
+              type="button"
+              disabled={downloadingResume}
+              onClick={handleDownloadResume}
+              className="px-3 py-1 rounded text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {downloadingResume ? (
+                <>
+                  <svg className="w-3 h-3 animate-spin text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                  </svg>
+                  <span>Downloading...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  <span>Download Document</span>
+                </>
+              )}
+            </button>
+
           </div>
         </div>
 

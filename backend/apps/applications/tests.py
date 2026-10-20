@@ -635,3 +635,172 @@ class AIMatchingEngineTests(APITestCase):
         results_asc = sort_asc_res.data["results"]
         self.assertLessEqual(results_asc[0]["match_score"], results_asc[1]["match_score"])
 
+
+class SecurityAndHardeningTests(APITestCase):
+    """
+    Test suite for Phase 6: Security Audit, Hardening & Defensive Edge Cases.
+    """
+
+    def setUp(self):
+        # Recruiter
+        self.recruiter = User.objects.create_user(
+            email="sec_recruiter@company.com",
+            password="Password123!",
+            first_name="Sam",
+            last_name="Recruiter",
+            role=Role.RECRUITER,
+            company_name="SecureCorp",
+        )
+        self.intruder_recruiter = User.objects.create_user(
+            email="sec_intruder_rec@company.com",
+            password="Password123!",
+            first_name="Intruder",
+            last_name="Recruiter",
+            role=Role.RECRUITER,
+            company_name="EvilCorp",
+        )
+
+        # Candidates
+        self.candidate = User.objects.create_user(
+            email="sec_candidate@dev.com",
+            password="Password123!",
+            first_name="Sarah",
+            last_name="Dev",
+            role=Role.CANDIDATE,
+        )
+        self.intruder_candidate = User.objects.create_user(
+            email="sec_intruder_cand@dev.com",
+            password="Password123!",
+            first_name="Bad",
+            last_name="Actor",
+            role=Role.CANDIDATE,
+        )
+
+        # Active Job
+        self.job = JobPosting.objects.create(
+            recruiter=self.recruiter,
+            title="Senior Security Architect",
+            company_name="SecureCorp",
+            location="Remote",
+            location_type=LocationType.REMOTE,
+            employment_type=EmploymentType.FULL_TIME,
+            experience_level=ExperienceLevel.SENIOR,
+            description="Looking for Python and Django security engineer.",
+            required_skills=["Python", "Django"],
+            status=JobStatus.ACTIVE,
+        )
+
+    def test_secure_resume_download_candidate_and_recruiter(self):
+        # 1. Candidate applies
+        self.client.force_authenticate(user=self.candidate)
+        pdf_file = SimpleUploadedFile(
+            "sarah_resume.pdf",
+            generate_test_pdf("Python Django Security Expert"),
+            content_type="application/pdf",
+        )
+        app_res = self.client.post(
+            reverse("applications-v1:job_apply", kwargs={"id": self.job.id}),
+            {"file": pdf_file},
+            format="multipart",
+        )
+        app_id = app_res.data["id"]
+        download_url = reverse("applications-v1:resume_download", kwargs={"id": app_id})
+
+        # 2. Candidate downloads own resume
+        cand_dl_res = self.client.get(download_url)
+        self.assertEqual(cand_dl_res.status_code, status.HTTP_200_OK)
+        self.assertIn("attachment", cand_dl_res.get("Content-Disposition", ""))
+        self.assertIn("sarah_resume.pdf", cand_dl_res.get("Content-Disposition", ""))
+
+        # 3. Job owner recruiter downloads candidate resume
+        self.client.force_authenticate(user=self.recruiter)
+        rec_dl_res = self.client.get(download_url)
+        self.assertEqual(rec_dl_res.status_code, status.HTTP_200_OK)
+
+    def test_secure_resume_download_unauthorized_intruder_blocked(self):
+        # 1. Candidate applies
+        self.client.force_authenticate(user=self.candidate)
+        pdf_file = SimpleUploadedFile("resume.pdf", generate_test_pdf("Python dev"), content_type="application/pdf")
+        app_res = self.client.post(
+            reverse("applications-v1:job_apply", kwargs={"id": self.job.id}),
+            {"file": pdf_file},
+            format="multipart",
+        )
+        app_id = app_res.data["id"]
+        download_url = reverse("applications-v1:resume_download", kwargs={"id": app_id})
+
+        # 2. Unauthenticated user blocked
+        self.client.force_authenticate(user=None)
+        anon_res = self.client.get(download_url)
+        self.assertEqual(anon_res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # 3. Unrelated candidate blocked
+        self.client.force_authenticate(user=self.intruder_candidate)
+        intruder_cand_res = self.client.get(download_url)
+        self.assertEqual(intruder_cand_res.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 4. Unrelated recruiter blocked
+        self.client.force_authenticate(user=self.intruder_recruiter)
+        intruder_rec_res = self.client.get(download_url)
+        self.assertEqual(intruder_rec_res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_empty_resume_upload_rejected(self):
+        self.client.force_authenticate(user=self.candidate)
+        empty_file = SimpleUploadedFile("empty.pdf", b"", content_type="application/pdf")
+        res = self.client.post(
+            reverse("applications-v1:job_apply", kwargs={"id": self.job.id}),
+            {"file": empty_file},
+            format="multipart",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("file", res.data)
+
+    def test_spoofed_pdf_signature_rejected(self):
+        self.client.force_authenticate(user=self.candidate)
+        # File named .pdf but containing executable bytes instead of %PDF signature
+        spoofed_file = SimpleUploadedFile("malicious.pdf", b"MZ\x90\x00NotAPdfBinaryContent", content_type="application/pdf")
+        res = self.client.post(
+            reverse("applications-v1:job_apply", kwargs={"id": self.job.id}),
+            {"file": spoofed_file},
+            format="multipart",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("signature", str(res.data).lower())
+
+    def test_unsupported_extension_rejected(self):
+        self.client.force_authenticate(user=self.candidate)
+        exe_file = SimpleUploadedFile("payload.exe", b"MZ\x90\x00BinaryContent", content_type="application/x-msdownload")
+        res = self.client.post(
+            reverse("applications-v1:job_apply", kwargs={"id": self.job.id}),
+            {"file": exe_file},
+            format="multipart",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("unsupported", str(res.data).lower())
+
+
+    def test_cannot_withdraw_rejected_application(self):
+        # 1. Candidate applies
+        self.client.force_authenticate(user=self.candidate)
+        pdf_file = SimpleUploadedFile("resume.pdf", generate_test_pdf("Python"), content_type="application/pdf")
+        app_res = self.client.post(
+            reverse("applications-v1:job_apply", kwargs={"id": self.job.id}),
+            {"file": pdf_file},
+            format="multipart",
+        )
+        app_id = app_res.data["id"]
+        detail_url = reverse("applications-v1:application_detail", kwargs={"id": app_id})
+
+        # 2. Recruiter rejects candidate
+        self.client.force_authenticate(user=self.recruiter)
+        reject_res = self.client.patch(detail_url, {"status": ApplicationStatus.REJECTED})
+        self.assertEqual(reject_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(reject_res.data["status"], ApplicationStatus.REJECTED)
+
+        # 3. Candidate attempts to withdraw a rejected application
+        self.client.force_authenticate(user=self.candidate)
+        withdraw_res = self.client.patch(detail_url, {"status": ApplicationStatus.WITHDRAWN})
+        self.assertEqual(withdraw_res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("rejected", str(withdraw_res.data).lower())
+
+

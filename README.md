@@ -104,6 +104,8 @@ All endpoints are versioned under `/api/v1/`:
 | `GET` | `/api/v1/jobs/{id}/applications/` | Recruiter (Job Owner) | List applicants for a specific job posting with resume parsing status, detected skill previews, and match scores. Supports sorting (`?ordering=-match_score\|match_score\|-created_at`) and score threshold filtering (`?min_score=80`). |
 | `GET` | `/api/v1/applications/{id}/` | Candidate Applicant \| Job Recruiter | View detailed application info, including parsed resume entities, cover note, candidate profile, and full AI match breakdown. |
 | `PATCH` | `/api/v1/applications/{id}/` | Candidate Applicant \| Job Recruiter | Update application status. Recruiters can transition to `IN_REVIEW`, `SHORTLISTED`, or `REJECTED`. Candidates can transition to `WITHDRAWN`. |
+| `GET` | `/api/v1/applications/{id}/resume/` | Candidate Applicant \| Job Recruiter | Securely stream candidate's uploaded resume file with attachment headers. Prevents public media exposure and path traversal; unauthorized users blocked with 403. |
+
 
 ### AI Matching Engine & Explainable Insights (`/api/v1/applications/{id}/match/`)
 | Method | Endpoint | Access | Description |
@@ -207,7 +209,11 @@ The frontend is now running at `http://localhost:5173/`. Open this URL in your b
    cd hireflow/backend
    .\.venv\Scripts\python.exe manage.py test
    ```
-   Runs 43 automated tests covering:
+   Runs 49 automated tests covering:
+   - Secure resume document downloads (`/applications/{id}/resume/`) restricted to participants
+   - Rejection of spoofed files, unsupported executable extensions, and empty 0-byte resumes
+   - Integrity enforcement preventing withdrawal of already rejected applications
+   - Atomic protection against concurrent duplicate job applications
    - Explainable AI matching score calculation across 0.0 to 100.0 bounds
    - Deterministic and reproducible scoring across identical inputs
    - Exact and case-insensitive skill taxonomy matching and missing skills identification
@@ -247,6 +253,6 @@ The frontend is now running at `http://localhost:5173/`. Open this URL in your b
 - [x] **Phase 3: Job Management Module**
 - [x] **Phase 4: Candidate Application Flow & Resume Ingestion Engine**
 - [x] **Phase 5: AI Resume-to-Job Matching Engine & Explainable Scoring**
-- [ ] **Phase 6: Frontend Architecture, Dashboards & Role-Based Navigation**
-- [ ] **Phase 7: Recruiter Review Pipeline & AI Insights UI**
-- [ ] **Phase 8: Validation, Testing Suite & Deployment Hardening**
+- [x] **Phase 6: Security Audit, Bug Fixes & End-to-End Integration**
+- [ ] **Phase 7: Recruiter Review Pipeline & AI Insights UI Enhancements**
+- [ ] **Phase 8: Production Deployment Hardening & Final Portfolio Release**

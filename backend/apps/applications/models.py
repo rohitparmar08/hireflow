@@ -106,9 +106,12 @@ class Application(models.Model):
 
         # Candidate actions
         if user == self.candidate:
+            if self.status == ApplicationStatus.REJECTED:
+                return False, "Cannot withdraw an application that has already been rejected."
             if new_status == ApplicationStatus.WITHDRAWN:
                 return True, ""
             return False, "Candidates can only withdraw their application."
+
 
         return False, "You do not have permission to change this application status."
 
