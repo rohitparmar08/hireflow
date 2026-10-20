@@ -33,6 +33,13 @@ export default function Navbar() {
 
         {/* Navigation Actions */}
         <div className="flex items-center space-x-3 sm:space-x-4 text-sm">
+          <Link
+            to="/jobs"
+            className="font-medium text-slate-700 hover:text-indigo-600 transition"
+          >
+            Browse Jobs
+          </Link>
+
           {isAuthenticated ? (
             <>
               {/* Role Indicator Badge */}
@@ -50,6 +57,15 @@ export default function Navbar() {
                 ></span>
                 {user.role === 'RECRUITER' ? 'Recruiter' : 'Candidate'}
               </span>
+
+              {user.role === 'RECRUITER' && (
+                <Link
+                  to="/recruiter/jobs/create"
+                  className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-xs"
+                >
+                  + Post a Job
+                </Link>
+              )}
 
               <Link
                 to={dashboardPath}

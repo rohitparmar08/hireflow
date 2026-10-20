@@ -5,6 +5,10 @@ import LandingPage from './pages/LandingPage';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import Profile from './pages/Profile';
+import JobListing from './pages/jobs/JobListing';
+import JobDetail from './pages/jobs/JobDetail';
+import CreateJob from './pages/recruiter/CreateJob';
+import EditJob from './pages/recruiter/EditJob';
 import RecruiterDashboard from './pages/recruiter/RecruiterDashboard';
 import CandidateDashboard from './pages/candidate/CandidateDashboard';
 import ProtectedRoute from './routes/ProtectedRoute';
@@ -22,6 +26,8 @@ export default function App() {
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/jobs" element={<JobListing />} />
+              <Route path="/jobs/:id" element={<JobDetail />} />
 
               {/* Authenticated Common Route */}
               <Route
@@ -33,13 +39,33 @@ export default function App() {
                 }
               />
 
-              {/* Recruiter Protected Route (RoleGuard) */}
+              {/* Recruiter Protected Routes (RoleGuard) */}
               <Route
                 path="/recruiter/dashboard"
                 element={
                   <ProtectedRoute>
                     <RoleGuard allowedRole="RECRUITER">
                       <RecruiterDashboard />
+                    </RoleGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/recruiter/jobs/create"
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRole="RECRUITER">
+                      <CreateJob />
+                    </RoleGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/recruiter/jobs/:id/edit"
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRole="RECRUITER">
+                      <EditJob />
                     </RoleGuard>
                   </ProtectedRoute>
                 }
@@ -62,7 +88,7 @@ export default function App() {
             </Routes>
           </div>
           <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
-            HireFlow &bull; AI-Powered Recruitment Management Platform &bull; Phase 2 Complete
+            HireFlow &bull; AI-Powered Recruitment Management Platform &bull; Phase 3 Complete
           </footer>
         </div>
       </AuthProvider>

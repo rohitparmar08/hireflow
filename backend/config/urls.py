@@ -12,6 +12,7 @@ urlpatterns = [
     # Versioned API Endpoints
     path("api/v1/", include("apps.core.urls", namespace="core-v1")),
     path("api/v1/auth/", include("apps.accounts.urls", namespace="auth-v1")),
+    path("api/v1/", include("apps.jobs.urls", namespace="jobs-v1")),
 ]
 
 # Serve media files in local development

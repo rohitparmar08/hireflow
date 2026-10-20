@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     # Local application modules
     "apps.core",
     "apps.accounts",
+    "apps.jobs",
 ]
 
 # Custom User Model

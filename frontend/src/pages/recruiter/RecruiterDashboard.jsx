@@ -1,91 +1,295 @@
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import jobsApi from '../../api/jobs.api';
 
 export default function RecruiterDashboard() {
   const { user } = useAuth();
 
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [statusFilter, setStatusFilter] = useState(''); // '' for ALL, or ACTIVE, DRAFT, CLOSED
+  const [jobToClose, setJobToClose] = useState(null);
+  const [closing, setClosing] = useState(false);
+
+  const fetchRecruiterJobs = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await jobsApi.getRecruiterJobs({
+        status: statusFilter || undefined,
+      });
+      setJobs(data.results || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load your postings.');
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter]);
+
+  useEffect(() => {
+    fetchRecruiterJobs();
+  }, [fetchRecruiterJobs]);
+
+  const handleCloseJob = async () => {
+    if (!jobToClose) return;
+    setClosing(true);
+    try {
+      await jobsApi.archiveJob(jobToClose.id);
+      setJobToClose(null);
+      fetchRecruiterJobs();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to close job.');
+    } finally {
+      setClosing(false);
+    }
+  };
+
+  // Compute live metric counts
+  const totalJobsCount = jobs.length;
+  const activeJobsCount = jobs.filter((j) => j.status === 'ACTIVE').length;
+  const draftJobsCount = jobs.filter((j) => j.status === 'DRAFT').length;
+  const closedJobsCount = jobs.filter((j) => j.status === 'CLOSED').length;
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      {/* Header */}
+      {/* Header Banner */}
       <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center space-x-3 mb-2">
             <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800 border border-indigo-200">
-              Recruiter Portal
+              Recruiter Dashboard
             </span>
-            <span className="text-xs text-slate-400">Authenticated via SimpleJWT</span>
+            <span className="text-xs text-slate-400">Phase 3: Active Job Management</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-            Welcome, {user?.first_name || 'Recruiter'}!
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Welcome back, {user?.first_name || 'Recruiter'}!
           </h1>
           <p className="text-sm text-slate-600 mt-1">
-            Managing recruitment for <strong className="text-indigo-600">{user?.company_name || 'Your Company'}</strong>
+            Managing openings for <strong className="text-indigo-600">{user?.company_name || 'Your Company'}</strong>
           </p>
         </div>
 
         <div className="flex items-center space-x-3">
           <Link
-            to="/profile"
-            className="px-4 py-2 text-sm font-medium rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+            to="/jobs"
+            className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
           >
-            Edit Profile
+            Public Job Board &rarr;
           </Link>
-          <button
-            disabled
-            className="px-4 py-2 text-sm font-medium rounded-lg text-white bg-indigo-600 opacity-60 cursor-not-allowed shadow-xs"
-            title="Available in Phase 3"
+          <Link
+            to="/recruiter/jobs/create"
+            className="px-5 py-2.5 text-xs font-semibold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-xs transition"
           >
-            + Post New Job (Phase 3)
-          </button>
+            + Post New Job
+          </Link>
         </div>
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
-            Active Job Postings
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+            Total Postings
           </div>
-          <div className="text-3xl font-extrabold text-slate-900">0</div>
-          <p className="text-xs text-slate-400 mt-1">Ready for Phase 3 Job Management</p>
+          <div className="text-3xl font-extrabold text-slate-900">{totalJobsCount}</div>
+          <p className="text-[11px] text-slate-400 mt-1">All managed openings</p>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
-            Total Candidates
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 mb-1">
+            Active / Listed
           </div>
-          <div className="text-3xl font-extrabold text-slate-900">0</div>
-          <p className="text-xs text-slate-400 mt-1">Ready for Phase 4 Applications</p>
+          <div className="text-3xl font-extrabold text-emerald-700">{activeJobsCount}</div>
+          <p className="text-[11px] text-slate-400 mt-1">Accepting candidates</p>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
-            AI Matches Evaluated
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-amber-600 mb-1">
+            Draft Postings
           </div>
-          <div className="text-3xl font-extrabold text-slate-900">0</div>
-          <p className="text-xs text-slate-400 mt-1">Ready for Phase 5 AI Matching</p>
+          <div className="text-3xl font-extrabold text-amber-700">{draftJobsCount}</div>
+          <p className="text-[11px] text-slate-400 mt-1">Unpublished roles</p>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+            Closed Roles
+          </div>
+          <div className="text-3xl font-extrabold text-slate-600">{closedJobsCount}</div>
+          <p className="text-[11px] text-slate-400 mt-1">Archived positions</p>
         </div>
       </div>
 
-      {/* RBAC Verification Info Card */}
-      <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-6 text-indigo-950">
-        <h3 className="font-bold text-lg mb-2 flex items-center">
-          <svg className="w-5 h-5 mr-2 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fillRule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-              clipRule="evenodd"
-            />
-          </svg>
-          Phase 2 RBAC Verification Active
-        </h3>
-        <p className="text-sm leading-relaxed mb-3">
-          You are authenticated with the <strong>RECRUITER</strong> role. The frontend <code className="bg-indigo-100 px-1.5 py-0.5 rounded text-xs font-mono">RoleGuard</code> and backend DRF permission classes (<code className="bg-indigo-100 px-1.5 py-0.5 rounded text-xs font-mono">IsRecruiter</code>) are strictly enforcing access. Candidate-only routes and actions are protected against unauthorized access.
-        </p>
-        <div className="text-xs text-indigo-800">
-          User ID: <code className="font-mono">{user?.id}</code> &bull; Email: <code className="font-mono">{user?.email}</code>
+      {/* Postings Table Section */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        {/* Filter Navigation Tabs */}
+        <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h2 className="text-lg font-bold text-slate-900">Your Job Postings</h2>
+
+          <div className="flex space-x-1 p-1 bg-slate-100 rounded-xl text-xs font-semibold">
+            {[
+              { label: 'All Jobs', value: '' },
+              { label: 'Active', value: 'ACTIVE' },
+              { label: 'Drafts', value: 'DRAFT' },
+              { label: 'Closed', value: 'CLOSED' },
+            ].map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setStatusFilter(tab.value)}
+                className={`px-3 py-1.5 rounded-lg transition ${
+                  statusFilter === tab.value
+                    ? 'bg-white text-indigo-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {error && (
+          <div className="m-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs">
+            {error}
+          </div>
+        )}
+
+        {loading && (
+          <div className="p-12 text-center text-sm text-slate-500">
+            <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+            Loading your job postings...
+          </div>
+        )}
+
+        {!loading && jobs.length === 0 && (
+          <div className="p-12 text-center max-w-md mx-auto">
+            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-3">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            <h3 className="font-bold text-slate-800 text-base mb-1">No job postings found</h3>
+            <p className="text-xs text-slate-500 mb-6">
+              {statusFilter
+                ? `You have no postings with '${statusFilter}' status.`
+                : "You haven't posted any jobs yet. Create your first opening to start recruiting."}
+            </p>
+            <Link
+              to="/recruiter/jobs/create"
+              className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition"
+            >
+              + Create First Job
+            </Link>
+          </div>
+        )}
+
+        {!loading && jobs.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-100">
+                <tr>
+                  <th className="px-6 py-3.5">Job Title</th>
+                  <th className="px-6 py-3.5">Model / Type</th>
+                  <th className="px-6 py-3.5">Status</th>
+                  <th className="px-6 py-3.5">Applicants</th>
+                  <th className="px-6 py-3.5">Posted On</th>
+                  <th className="px-6 py-3.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {jobs.map((job) => (
+                  <tr key={job.id} className="hover:bg-slate-50/50 transition">
+                    <td className="px-6 py-4 font-semibold text-slate-900">
+                      <Link to={`/jobs/${job.id}`} className="hover:text-indigo-600 transition block">
+                        {job.title}
+                      </Link>
+                      <span className="text-[11px] text-slate-400 font-normal">{job.company_name}</span>
+                    </td>
+                    <td className="px-6 py-4 text-slate-600">
+                      <div>{job.location_type}</div>
+                      <div className="text-[11px] text-slate-400">{job.employment_type?.replace('_', ' ')}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                          job.status === 'ACTIVE'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : job.status === 'DRAFT'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        {job.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-slate-600">
+                      <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
+                        {job.applications_count || 0}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-slate-400">
+                      {new Date(job.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 text-right space-x-2">
+                      <Link
+                        to={`/jobs/${job.id}`}
+                        className="px-2.5 py-1 rounded text-[11px] font-medium text-slate-600 hover:bg-slate-100"
+                      >
+                        View
+                      </Link>
+                      <Link
+                        to={`/recruiter/jobs/${job.id}/edit`}
+                        className="px-2.5 py-1 rounded text-[11px] font-medium text-indigo-600 hover:bg-indigo-50"
+                      >
+                        Edit
+                      </Link>
+                      {job.status !== 'CLOSED' && (
+                        <button
+                          onClick={() => setJobToClose(job)}
+                          className="px-2.5 py-1 rounded text-[11px] font-medium text-red-600 hover:bg-red-50"
+                        >
+                          Close
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
+
+      {/* Confirmation Modal */}
+      {jobToClose && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-900 mb-2">Close &apos;{jobToClose.title}&apos;?</h3>
+            <p className="text-xs text-slate-600 leading-relaxed mb-6">
+              Closing this job changes its status to <strong>CLOSED</strong>. It will be delisted from the public job board, but your applicant history remains intact.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setJobToClose(null)}
+                className="px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={closing}
+                onClick={handleCloseJob}
+                className="px-4 py-2 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition disabled:opacity-50"
+              >
+                {closing ? 'Closing...' : 'Confirm & Close'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

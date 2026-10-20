@@ -27,12 +27,13 @@ hireflow/
 │   │   │   ├── base.py         # Shared base configuration & SimpleJWT setup
 │   │   │   ├── local.py        # Local development (SQLite, DEBUG=True)
 │   │   │   └── production.py   # Production (PostgreSQL, security headers)
-│   │   ├── urls.py             # Root URL routing (/api/v1/ and /api/v1/auth/)
+│   │   ├── urls.py             # Root URL routing (/api/v1/)
 │   │   ├── wsgi.py
 │   │   └── asgi.py
 │   └── apps/
 │       ├── core/               # Health check and core metadata endpoints
-│       └── accounts/           # Custom User model, SimpleJWT auth, RBAC, profile endpoints
+│       ├── accounts/           # Custom User model, SimpleJWT auth, RBAC, profile endpoints
+│       └── jobs/               # JobPosting model, REST CRUD APIs, filters, pagination, admin
 ├── frontend/
 │   ├── .env.example            # Frontend environment variable template
 │   ├── package.json            # React 19, Tailwind CSS, Axios, React Router
@@ -40,11 +41,17 @@ hireflow/
 │   ├── tailwind.config.js      # Tailwind CSS configuration
 │   ├── postcss.config.js
 │   └── src/
-│       ├── api/                # Axios instance & auth interceptors (client.js, auth.api.js)
+│       ├── api/                # Axios instance, auth interceptors & API services (auth, jobs)
 │       ├── context/            # AuthContext (login, register, logout, profile state)
 │       ├── routes/             # ProtectedRoute & RoleGuard components
 │       ├── components/         # Navbar, badges, layout primitives
-│       ├── pages/              # LandingPage, Login, Register, Profile, Role Dashboards
+│       ├── pages/
+│       │   ├── auth/           # Login, Register
+│       │   ├── jobs/           # JobListing (public board), JobDetail
+│       │   ├── recruiter/      # RecruiterDashboard, CreateJob, EditJob
+│       │   ├── candidate/      # CandidateDashboard
+│       │   ├── LandingPage.jsx
+│       │   └── Profile.jsx
 │       └── App.jsx             # React Router hierarchy
 ├── .gitignore                  # Git ignore rules for Python, Node, and secrets
 └── README.md                   # Setup documentation & developer guide
@@ -52,10 +59,11 @@ hireflow/
 
 ---
 
-## 🔐 Authentication & RBAC API Endpoints
+## 🔐 API Endpoints Reference
 
-All auth endpoints are versioned under `/api/v1/auth/`:
+All endpoints are versioned under `/api/v1/`:
 
+### Authentication & User Management (`/api/v1/auth/`)
 | Method | Endpoint | Access | Description |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/v1/auth/register/` | Public | Register new user as `RECRUITER` or `CANDIDATE`. Returns tokens and user data. |
@@ -63,7 +71,28 @@ All auth endpoints are versioned under `/api/v1/auth/`:
 | `POST` | `/api/v1/auth/refresh/` | Public | Refresh expired access token with automatic token rotation. |
 | `POST` | `/api/v1/auth/logout/` | Authenticated | Blacklists the refresh token preventing reuse. |
 | `GET` | `/api/v1/auth/me/` | Authenticated | Retrieve current user profile and role. |
-| `PATCH` | `/api/v1/auth/profile/` | Authenticated | Update profile details (first name, headline, bio, etc.). Role escalation is forbidden. |
+| `PATCH` | `/api/v1/auth/profile/` | Authenticated | Update profile details. Role escalation is forbidden. |
+
+### Job Postings & Management (`/api/v1/jobs/` & `/api/v1/recruiter/jobs/`)
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/jobs/` | Public | List active job openings. Supports pagination, keyword search, and filters. |
+| `GET` | `/api/v1/jobs/{id}/` | Public / Owner | View job details (active jobs are public; draft/closed jobs restricted to owner). |
+| `POST` | `/api/v1/jobs/` | Recruiter Only | Create a new job opening (`ACTIVE` or `DRAFT`). Owner assigned automatically. |
+| `PATCH` | `/api/v1/jobs/{id}/` | Recruiter (Owner) | Partially update a job posting. |
+| `PUT` | `/api/v1/jobs/{id}/` | Recruiter (Owner) | Fully update a job posting. |
+| `DELETE` | `/api/v1/jobs/{id}/` | Recruiter (Owner) | Soft-delete / Archive job to `CLOSED` status. |
+| `GET` | `/api/v1/recruiter/jobs/`| Recruiter Only | View personal job openings across all statuses (`?status=ACTIVE\|DRAFT\|CLOSED`). |
+
+#### Supported Filter & Search Query Parameters for `GET /api/v1/jobs/`:
+- `search`: Case-insensitive search on title, company name, or description.
+- `location`: Location substring search.
+- `location_type`: `REMOTE`, `HYBRID`, or `ONSITE`.
+- `employment_type`: `FULL_TIME`, `PART_TIME`, `CONTRACT`, or `INTERNSHIP`.
+- `experience_level`: `ENTRY`, `MID`, `SENIOR`, `LEAD`, or `EXECUTIVE`.
+- `skill`: Matches required or optional skills.
+- `min_salary`: Minimum salary filter.
+- `page`: Page number for pagination.
 
 ---
 
@@ -82,9 +111,6 @@ All auth endpoints are versioned under `/api/v1/auth/`:
 # Navigate to the backend directory
 cd hireflow/backend
 
-# Create a Python virtual environment (if not already created)
-python -m venv .venv
-
 # Activate the virtual environment
 # On Windows (PowerShell):
 .\.venv\Scripts\Activate.ps1
@@ -94,13 +120,10 @@ source .venv/bin/activate
 # Install backend dependencies
 pip install -r requirements.txt
 
-# Create your local environment file (if not already present)
-cp .env.example .env
-
-# Run database migrations (creates custom User, auth, and blacklist tables)
+# Run database migrations
 python manage.py migrate
 
-# Run the test suite (14 automated tests)
+# Run the test suite (24 automated tests across core, accounts, and jobs)
 python manage.py test
 
 # Start the development server
@@ -118,16 +141,13 @@ In a new terminal window:
 # Navigate to the frontend directory
 cd hireflow/frontend
 
-# Install frontend dependencies
+# Install dependencies (if not already installed)
 npm install
-
-# Create your frontend environment file (if not already present)
-cp .env.example .env
 
 # Start the Vite development server
 npm run dev
 ```
-The frontend is now running at `http://localhost:5173/`. Open this URL in your browser to test registration, login, profile updates, and role-based redirects.
+The frontend is now running at `http://localhost:5173/`. Open this URL in your browser to test job browsing, searching, filtering, posting jobs as a recruiter, and role-based views.
 
 ---
 
@@ -138,7 +158,15 @@ The frontend is now running at `http://localhost:5173/`. Open this URL in your b
    cd hireflow/backend
    .\.venv\Scripts\python.exe manage.py test
    ```
-   Runs 14 automated tests covering candidate/recruiter registration, password validation, login, token refresh rotation, logout token blacklisting, profile updates, role privilege escalation defenses, and API health checks.
+   Runs 24 automated tests covering:
+   - Public access to active jobs and draft job hiding
+   - Recruiter job creation, editing, and archive/closing
+   - Candidate and anonymous posting restrictions
+   - Ownership enforcement (Recruiter A cannot alter Recruiter B's jobs)
+   - Multi-parameter search, filtering, and pagination
+   - Salary range and skill tag validation
+   - JWT authentication, refresh rotation, and logout blacklisting
+   - API root and health check endpoints
 
 2. **Frontend Production Build**:
    ```bash
@@ -152,7 +180,7 @@ The frontend is now running at `http://localhost:5173/`. Open this URL in your b
 
 - [x] **Phase 1: Foundation & Tooling Setup**
 - [x] **Phase 2: Authentication, Custom User Model & RBAC**
-- [ ] **Phase 3: Job Management Module**
+- [x] **Phase 3: Job Management Module**
 - [ ] **Phase 4: Candidate Application Flow & Resume Ingestion Engine**
 - [ ] **Phase 5: AI Resume-to-Job Matching Engine & Explainable Scoring**
 - [ ] **Phase 6: Frontend Architecture, Dashboards & Role-Based Navigation**
