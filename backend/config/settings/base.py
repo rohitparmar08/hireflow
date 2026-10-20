@@ -164,12 +164,34 @@ SIMPLE_JWT = {
 }
 
 # CORS Configuration
-raw_cors = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+# Allows requests from deployed Render frontend and local development servers
+DEFAULT_CORS_ORIGINS = (
+    "https://hireflow-frontend-sqsc.onrender.com,"
+    "https://hireflow-frontend.onrender.com,"
+    "http://localhost:5173,"
+    "http://127.0.0.1:5173,"
+    "http://localhost:3000"
+)
+raw_cors = os.getenv("CORS_ALLOWED_ORIGINS", DEFAULT_CORS_ORIGINS)
 CORS_ALLOWED_ORIGINS = [origin.strip() for origin in raw_cors.split(",") if origin.strip()]
 CORS_ALLOW_CREDENTIALS = True
 
+# Regex fallback allowing any Render deploy preview matching hireflow-frontend
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https:\/\/hireflow-frontend.*\.onrender\.com$",
+]
+
 # CSRF Trusted Origins
-raw_csrf = os.getenv("CSRF_TRUSTED_ORIGINS", "")
+DEFAULT_CSRF_ORIGINS = (
+    "https://hireflow-frontend-sqsc.onrender.com,"
+    "https://hireflow-backend-gilk.onrender.com,"
+    "https://hireflow-frontend.onrender.com,"
+    "https://hireflow-backend.onrender.com,"
+    "http://localhost:5173,"
+    "http://127.0.0.1:5173,"
+    "http://localhost:3000"
+)
+raw_csrf = os.getenv("CSRF_TRUSTED_ORIGINS", DEFAULT_CSRF_ORIGINS)
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in raw_csrf.split(",") if origin.strip()]
 if not CSRF_TRUSTED_ORIGINS:
     CSRF_TRUSTED_ORIGINS = [o for o in CORS_ALLOWED_ORIGINS if o.startswith(("http://", "https://"))]
