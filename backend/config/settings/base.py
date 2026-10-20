@@ -4,6 +4,7 @@ These settings are shared across all environments (local, production).
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 import dj_database_url
 
@@ -29,10 +30,16 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Third-party packages
     "rest_framework",
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     # Local application modules
     "apps.core",
+    "apps.accounts",
 ]
+
+# Custom User Model
+AUTH_USER_MODEL = "accounts.User"
 
 MIDDLEWARE = [
     # CorsMiddleware should be placed as high as possible
@@ -123,6 +130,24 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.FormParser",
         "rest_framework.parsers.MultiPartParser",
     ],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
+}
+
+# SimpleJWT Authentication Settings
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
 }
 
 # CORS Configuration

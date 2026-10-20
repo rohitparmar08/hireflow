@@ -50,7 +50,14 @@ class ApiRootView(APIView):
             "documentation": "/api/v1/docs/ (Phase 8)",
             "endpoints": {
                 "health": request.build_absolute_uri("health/"),
-                "auth": "/api/v1/auth/ (Phase 2)",
+                "auth": {
+                    "register": request.build_absolute_uri("auth/register/"),
+                    "login": request.build_absolute_uri("auth/login/"),
+                    "refresh": request.build_absolute_uri("auth/refresh/"),
+                    "logout": request.build_absolute_uri("auth/logout/"),
+                    "me": request.build_absolute_uri("auth/me/"),
+                    "profile": request.build_absolute_uri("auth/profile/"),
+                },
                 "jobs": "/api/v1/jobs/ (Phase 3)",
                 "applications": "/api/v1/applications/ (Phase 4)",
             },

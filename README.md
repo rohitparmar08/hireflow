@@ -6,10 +6,10 @@ HireFlow is a modern, full-stack recruitment and applicant tracking platform fea
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: React 19, Vite, Tailwind CSS
-- **Backend**: Django 5, Django REST Framework (DRF)
+- **Frontend**: React 19, Vite, Tailwind CSS, React Router, Axios
+- **Backend**: Django 5, Django REST Framework (DRF), SimpleJWT
 - **Database**: PostgreSQL (Production-ready via `DATABASE_URL`) / SQLite (Zero-friction local dev fallback)
-- **Authentication**: JWT (JSON Web Tokens via SimpleJWT)
+- **Authentication**: JWT (JSON Web Tokens via SimpleJWT with 15m access / 7d refresh, rotation, & blacklist)
 - **API Architecture**: Versioned REST API (`/api/v1/`) with CORS headers configured
 
 ---
@@ -24,33 +24,53 @@ hireflow/
 │   ├── requirements.txt        # Backend dependencies
 │   ├── config/                 # Project configuration
 │   │   ├── settings/
-│   │   │   ├── base.py         # Shared base configuration
+│   │   │   ├── base.py         # Shared base configuration & SimpleJWT setup
 │   │   │   ├── local.py        # Local development (SQLite, DEBUG=True)
 │   │   │   └── production.py   # Production (PostgreSQL, security headers)
-│   │   ├── urls.py             # Root URL routing (/api/v1/)
+│   │   ├── urls.py             # Root URL routing (/api/v1/ and /api/v1/auth/)
 │   │   ├── wsgi.py
 │   │   └── asgi.py
 │   └── apps/
-│       └── core/               # Health check and core metadata endpoints
+│       ├── core/               # Health check and core metadata endpoints
+│       └── accounts/           # Custom User model, SimpleJWT auth, RBAC, profile endpoints
 ├── frontend/
 │   ├── .env.example            # Frontend environment variable template
-│   ├── package.json            # Node dependencies
+│   ├── package.json            # React 19, Tailwind CSS, Axios, React Router
 │   ├── vite.config.js          # Vite build config
 │   ├── tailwind.config.js      # Tailwind CSS configuration
 │   ├── postcss.config.js
 │   └── src/
-│       ├── App.jsx             # Foundational dashboard & health check UI
-│       └── main.jsx
+│       ├── api/                # Axios instance & auth interceptors (client.js, auth.api.js)
+│       ├── context/            # AuthContext (login, register, logout, profile state)
+│       ├── routes/             # ProtectedRoute & RoleGuard components
+│       ├── components/         # Navbar, badges, layout primitives
+│       ├── pages/              # LandingPage, Login, Register, Profile, Role Dashboards
+│       └── App.jsx             # React Router hierarchy
 ├── .gitignore                  # Git ignore rules for Python, Node, and secrets
 └── README.md                   # Setup documentation & developer guide
 ```
 
 ---
 
+## 🔐 Authentication & RBAC API Endpoints
+
+All auth endpoints are versioned under `/api/v1/auth/`:
+
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/auth/register/` | Public | Register new user as `RECRUITER` or `CANDIDATE`. Returns tokens and user data. |
+| `POST` | `/api/v1/auth/login/` | Public | Obtain access token (15 min) and refresh token (7 days). Returns user profile. |
+| `POST` | `/api/v1/auth/refresh/` | Public | Refresh expired access token with automatic token rotation. |
+| `POST` | `/api/v1/auth/logout/` | Authenticated | Blacklists the refresh token preventing reuse. |
+| `GET` | `/api/v1/auth/me/` | Authenticated | Retrieve current user profile and role. |
+| `PATCH` | `/api/v1/auth/profile/` | Authenticated | Update profile details (first name, headline, bio, etc.). Role escalation is forbidden. |
+
+---
+
 ## 🚀 Quickstart Guide
 
 ### 1. Prerequisites
-- **Python**: 3.10+ (tested through 3.14)
+- **Python**: 3.10+ (tested with Python 3.14)
 - **Node.js**: v18+ (tested with Node v24, npm 11+)
 - **Git**
 
@@ -62,7 +82,7 @@ hireflow/
 # Navigate to the backend directory
 cd hireflow/backend
 
-# Create a Python virtual environment
+# Create a Python virtual environment (if not already created)
 python -m venv .venv
 
 # Activate the virtual environment
@@ -74,23 +94,19 @@ source .venv/bin/activate
 # Install backend dependencies
 pip install -r requirements.txt
 
-# Create your local environment file
+# Create your local environment file (if not already present)
 cp .env.example .env
-# On Windows PowerShell if cp is not aliased:
-# Copy-Item .env.example .env
 
-# Run database migrations (creates local SQLite database)
+# Run database migrations (creates custom User, auth, and blacklist tables)
 python manage.py migrate
 
-# Run the test suite
+# Run the test suite (14 automated tests)
 python manage.py test
 
 # Start the development server
-python manage.py runserver
+python manage.py runserver 127.0.0.1:8000
 ```
 The backend API is now running at `http://127.0.0.1:8000/`.
-- API Root: `http://127.0.0.1:8000/api/v1/`
-- Health Check: `http://127.0.0.1:8000/api/v1/health/`
 
 ---
 
@@ -105,34 +121,25 @@ cd hireflow/frontend
 # Install frontend dependencies
 npm install
 
-# Create your frontend environment file
+# Create your frontend environment file (if not already present)
 cp .env.example .env
-# On Windows PowerShell if cp is not aliased:
-# Copy-Item .env.example .env
 
 # Start the Vite development server
 npm run dev
 ```
-The frontend is now running at `http://localhost:5173/`. Open this URL in your browser to view the foundational landing page with an interactive backend connectivity indicator.
+The frontend is now running at `http://localhost:5173/`. Open this URL in your browser to test registration, login, profile updates, and role-based redirects.
 
 ---
 
-## 🔍 Verification & Health Checks
+## 🧪 Testing & Verification
 
-1. **Backend Health Check**:
+1. **Automated Backend Test Suite**:
    ```bash
-   curl http://127.0.0.1:8000/api/v1/health/
+   cd hireflow/backend
+   .\.venv\Scripts\python.exe manage.py test
    ```
-   Expected response:
-   ```json
-   {
-     "status": "healthy",
-     "service": "HireFlow API",
-     "version": "1.0.0",
-     "debug_mode": true,
-     "database": "healthy"
-   }
-   ```
+   Runs 14 automated tests covering candidate/recruiter registration, password validation, login, token refresh rotation, logout token blacklisting, profile updates, role privilege escalation defenses, and API health checks.
+
 2. **Frontend Production Build**:
    ```bash
    cd hireflow/frontend
@@ -144,7 +151,7 @@ The frontend is now running at `http://localhost:5173/`. Open this URL in your b
 ## 🗺️ Implementation Roadmap
 
 - [x] **Phase 1: Foundation & Tooling Setup**
-- [ ] **Phase 2: Authentication, Custom User Model & RBAC**
+- [x] **Phase 2: Authentication, Custom User Model & RBAC**
 - [ ] **Phase 3: Job Management Module**
 - [ ] **Phase 4: Candidate Application Flow & Resume Ingestion Engine**
 - [ ] **Phase 5: AI Resume-to-Job Matching Engine & Explainable Scoring**
