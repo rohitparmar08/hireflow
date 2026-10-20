@@ -51,30 +51,32 @@ export default function RecruiterDashboard() {
   const activeJobsCount = jobs.filter((j) => j.status === 'ACTIVE').length;
   const draftJobsCount = jobs.filter((j) => j.status === 'DRAFT').length;
   const closedJobsCount = jobs.filter((j) => j.status === 'CLOSED').length;
+  const totalApplicantsCount = jobs.reduce((acc, j) => acc + (j.applications_count || 0), 0);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
       {/* Header Banner */}
-      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div>
-          <div className="flex items-center space-x-3 mb-2">
-            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800 border border-indigo-200">
-              Recruiter Dashboard
+          <div className="flex items-center space-x-2.5 mb-2">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mr-1.5"></span>
+              Recruiter Workspace
             </span>
-            <span className="text-xs text-slate-400">Phase 3: Active Job Management</span>
+            <span className="text-xs text-slate-400">Phase 5 AI Engine Connected</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             Welcome back, {user?.first_name || 'Recruiter'}!
           </h1>
           <p className="text-sm text-slate-600 mt-1">
-            Managing openings for <strong className="text-indigo-600">{user?.company_name || 'Your Company'}</strong>
+            Managing talent pipelines and positions for <strong className="text-indigo-600">{user?.company_name || 'Your Company'}</strong>
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 self-start sm:self-center">
           <Link
             to="/jobs"
-            className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+            className="px-4 py-2.5 text-xs font-semibold rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
           >
             Public Job Board &rarr;
           </Link>
@@ -82,53 +84,56 @@ export default function RecruiterDashboard() {
             to="/recruiter/jobs/create"
             className="px-5 py-2.5 text-xs font-semibold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-xs transition"
           >
-            + Post New Job
+            + Post New Opening
           </Link>
         </div>
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-            Total Postings
+            Total Openings
           </div>
           <div className="text-3xl font-extrabold text-slate-900">{totalJobsCount}</div>
-          <p className="text-[11px] text-slate-400 mt-1">All managed openings</p>
+          <p className="text-[11px] text-slate-400 mt-1">All managed positions</p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
           <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 mb-1">
             Active / Listed
           </div>
           <div className="text-3xl font-extrabold text-emerald-700">{activeJobsCount}</div>
-          <p className="text-[11px] text-slate-400 mt-1">Accepting candidates</p>
+          <p className="text-[11px] text-slate-400 mt-1">Accepting applicants</p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 mb-1">
+            Total Candidates
+          </div>
+          <div className="text-3xl font-extrabold text-indigo-700">{totalApplicantsCount}</div>
+          <p className="text-[11px] text-slate-400 mt-1">Across all postings</p>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
           <div className="text-[11px] font-bold uppercase tracking-wider text-amber-600 mb-1">
-            Draft Postings
+            Drafts &amp; Closed
           </div>
-          <div className="text-3xl font-extrabold text-amber-700">{draftJobsCount}</div>
-          <p className="text-[11px] text-slate-400 mt-1">Unpublished roles</p>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-            Closed Roles
-          </div>
-          <div className="text-3xl font-extrabold text-slate-600">{closedJobsCount}</div>
-          <p className="text-[11px] text-slate-400 mt-1">Archived positions</p>
+          <div className="text-3xl font-extrabold text-slate-700">{draftJobsCount + closedJobsCount}</div>
+          <p className="text-[11px] text-slate-400 mt-1">{draftJobsCount} drafts, {closedJobsCount} closed</p>
         </div>
       </div>
 
       {/* Postings Table Section */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         {/* Filter Navigation Tabs */}
         <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h2 className="text-lg font-bold text-slate-900">Your Job Postings</h2>
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Your Job Postings</h2>
+            <p className="text-xs text-slate-500">Track candidate flow and manage listings</p>
+          </div>
 
-          <div className="flex space-x-1 p-1 bg-slate-100 rounded-xl text-xs font-semibold">
+          <div className="flex space-x-1 p-1 bg-slate-100 rounded-xl text-xs font-semibold self-start sm:self-auto">
             {[
               { label: 'All Jobs', value: '' },
               { label: 'Active', value: 'ACTIVE' },
@@ -157,14 +162,14 @@ export default function RecruiterDashboard() {
         )}
 
         {loading && (
-          <div className="p-12 text-center text-sm text-slate-500">
+          <div className="p-16 text-center text-sm text-slate-500">
             <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
             Loading your job postings...
           </div>
         )}
 
         {!loading && jobs.length === 0 && (
-          <div className="p-12 text-center max-w-md mx-auto">
+          <div className="p-16 text-center max-w-md mx-auto">
             <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-3">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
@@ -178,7 +183,7 @@ export default function RecruiterDashboard() {
             </p>
             <Link
               to="/recruiter/jobs/create"
-              className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition"
+              className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-xs"
             >
               + Create First Job
             </Link>
@@ -202,7 +207,7 @@ export default function RecruiterDashboard() {
                 {jobs.map((job) => (
                   <tr key={job.id} className="hover:bg-slate-50/50 transition">
                     <td className="px-6 py-4 font-semibold text-slate-900">
-                      <Link to={`/jobs/${job.id}`} className="hover:text-indigo-600 transition block">
+                      <Link to={`/jobs/${job.id}`} className="hover:text-indigo-600 transition block text-sm">
                         {job.title}
                       </Link>
                       <span className="text-[11px] text-slate-400 font-normal">{job.company_name}</span>
@@ -213,19 +218,19 @@ export default function RecruiterDashboard() {
                     </td>
                     <td className="px-6 py-4">
                       <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                        className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                           job.status === 'ACTIVE'
-                            ? 'bg-emerald-100 text-emerald-800'
+                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                             : job.status === 'DRAFT'
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-slate-100 text-slate-600'
+                            ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                            : 'bg-slate-100 text-slate-600 border border-slate-200'
                         }`}
                       >
                         {job.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-slate-600">
-                      <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
                         {job.applications_count || 0}
                       </span>
                     </td>
@@ -235,26 +240,26 @@ export default function RecruiterDashboard() {
                     <td className="px-6 py-4 text-right space-x-2">
                       <Link
                         to={`/recruiter/jobs/${job.id}/applicants`}
-                        className="px-2.5 py-1 rounded text-[11px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition inline-block"
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition inline-block shadow-2xs"
                       >
-                        Applicants
+                        Applicants ({job.applications_count || 0})
                       </Link>
                       <Link
                         to={`/jobs/${job.id}`}
-                        className="px-2.5 py-1 rounded text-[11px] font-medium text-slate-600 hover:bg-slate-100"
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition inline-block"
                       >
                         View
                       </Link>
                       <Link
                         to={`/recruiter/jobs/${job.id}/edit`}
-                        className="px-2.5 py-1 rounded text-[11px] font-medium text-indigo-600 hover:bg-indigo-50"
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-indigo-600 hover:bg-indigo-50 transition inline-block"
                       >
                         Edit
                       </Link>
                       {job.status !== 'CLOSED' && (
                         <button
                           onClick={() => setJobToClose(job)}
-                          className="px-2.5 py-1 rounded text-[11px] font-medium text-red-600 hover:bg-red-50"
+                          className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-red-600 hover:bg-red-50 transition inline-block"
                         >
                           Close
                         </button>

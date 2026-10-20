@@ -4,6 +4,20 @@ import { useAuth } from '../../context/AuthContext';
 import jobsApi from '../../api/jobs.api';
 import applicationsApi from '../../api/applications.api';
 
+function getCompanyAvatar(name) {
+  const initial = name ? name.trim().charAt(0).toUpperCase() : 'H';
+  const colors = [
+    'bg-indigo-100 text-indigo-700 border-indigo-200',
+    'bg-blue-100 text-blue-700 border-blue-200',
+    'bg-emerald-100 text-emerald-700 border-emerald-200',
+    'bg-purple-100 text-purple-700 border-purple-200',
+    'bg-amber-100 text-amber-700 border-amber-200',
+    'bg-rose-100 text-rose-700 border-rose-200',
+  ];
+  const charCode = (name || 'H').charCodeAt(0) || 0;
+  return { initial, colorClass: colors[charCode % colors.length] };
+}
+
 export default function JobDetail() {
   const { id } = useParams();
   const { user, isAuthenticated, isCandidate, isRecruiter } = useAuth();
@@ -69,7 +83,7 @@ export default function JobDetail() {
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     setApplyError('');
     if (!file) return;
 
@@ -112,7 +126,7 @@ export default function JobDetail() {
       setExistingApplication(appData);
       setTimeout(() => {
         setShowApplyModal(false);
-      }, 1500);
+      }, 1600);
     } catch (err) {
       const respData = err.response?.data;
       let msg = 'Failed to submit application.';
@@ -132,8 +146,8 @@ export default function JobDetail() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-        <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+        <div className="w-10 h-10 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
         <p className="text-sm text-slate-500">Loading job details...</p>
       </div>
     );
@@ -156,6 +170,8 @@ export default function JobDetail() {
     );
   }
 
+  const avatar = getCompanyAvatar(job.company_name);
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Back button */}
@@ -166,73 +182,81 @@ export default function JobDetail() {
       </div>
 
       {/* Main Job Card */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden mb-8">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden mb-8">
         {/* Header Banner */}
-        <div className="p-6 sm:p-8 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                {job.company_name}
-              </span>
-              <span
-                className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
-                  job.status === 'ACTIVE'
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : job.status === 'DRAFT'
-                    ? 'bg-amber-100 text-amber-800'
-                    : 'bg-slate-100 text-slate-600'
-                }`}
-              >
-                {job.status}
-              </span>
+        <div className="p-6 sm:p-8 border-b border-slate-100 flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+          <div className="flex items-start space-x-4">
+            <div
+              className={`w-14 h-14 rounded-2xl flex items-center justify-center font-extrabold text-xl border shrink-0 ${avatar.colorClass}`}
+            >
+              {avatar.initial}
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              {job.title}
-            </h1>
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold text-sm text-slate-700">
+                  {job.company_name}
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
+                    job.status === 'ACTIVE'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : job.status === 'DRAFT'
+                      ? 'bg-amber-100 text-amber-800'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {job.status}
+                </span>
+              </div>
 
-            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1">
-              <span className="flex items-center">
-                <svg className="w-4 h-4 mr-1 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                </svg>
-                {job.location} ({job.location_type})
-              </span>
-              <span>&bull;</span>
-              <span>{job.employment_type?.replace('_', ' ')}</span>
-              <span>&bull;</span>
-              <span>{job.experience_level} Level</span>
-              {job.min_salary && job.max_salary && (
-                <>
-                  <span>&bull;</span>
-                  <span className="font-semibold text-emerald-700">
-                    ${Number(job.min_salary).toLocaleString()} - ${Number(job.max_salary).toLocaleString()} {job.salary_currency}
-                  </span>
-                </>
-              )}
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                {job.title}
+              </h1>
+
+              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 pt-1">
+                <span className="flex items-center">
+                  <svg className="w-3.5 h-3.5 mr-1 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                  </svg>
+                  {job.location} ({job.location_type})
+                </span>
+                <span>&bull;</span>
+                <span>{job.employment_type?.replace('_', ' ')}</span>
+                <span>&bull;</span>
+                <span>{job.experience_level} Level</span>
+                {job.min_salary && job.max_salary && (
+                  <>
+                    <span>&bull;</span>
+                    <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                      ${Number(job.min_salary).toLocaleString()} - ${Number(job.max_salary).toLocaleString()} {job.salary_currency}
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Action buttons */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 shrink-0 self-start md:self-center">
             {isOwner ? (
               <>
                 <Link
                   to={`/recruiter/jobs/${job.id}/applicants`}
-                  className="px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-xs"
+                  className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-xs"
                 >
                   View Applicants ({job.applications_count || 0})
                 </Link>
                 <Link
                   to={`/recruiter/jobs/${job.id}/edit`}
-                  className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 transition"
+                  className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 transition"
                 >
                   Edit Job
                 </Link>
                 {job.status !== 'CLOSED' && (
                   <button
                     onClick={() => setShowArchiveModal(true)}
-                    className="px-4 py-2 text-xs font-semibold rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
+                    className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
                   >
                     Close Role
                   </button>
@@ -240,12 +264,12 @@ export default function JobDetail() {
               </>
             ) : existingApplication ? (
               <div className="flex items-center space-x-2">
-                <span className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   Applied &bull; {existingApplication.status?.replace('_', ' ')}
                 </span>
                 <Link
                   to={`/applications/${existingApplication.id}`}
-                  className="px-3 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition"
+                  className="px-3.5 py-2 rounded-xl text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition shadow-xs"
                 >
                   View Application &rarr;
                 </Link>
@@ -254,25 +278,25 @@ export default function JobDetail() {
               isAuthenticated && isCandidate ? (
                 <button
                   onClick={() => setShowApplyModal(true)}
-                  className="px-6 py-2.5 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-xs transition"
+                  className="px-6 py-3 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-xs transition"
                 >
                   Apply for this Role &rarr;
                 </button>
               ) : isAuthenticated && isRecruiter ? (
                 <span className="text-xs text-slate-400 italic">
-                  Recruiters cannot apply for roles.
+                  Recruiter accounts cannot apply for roles.
                 </span>
               ) : (
                 <Link
                   to="/login"
                   state={{ from: location }}
-                  className="px-6 py-2.5 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-xs transition"
+                  className="px-6 py-3 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-xs transition"
                 >
                   Sign in to Apply
                 </Link>
               )
             ) : (
-              <span className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-500">
+              <span className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-500">
                 Position Closed
               </span>
             )}
@@ -281,16 +305,16 @@ export default function JobDetail() {
 
         {/* Content Body */}
         <div className="p-6 sm:p-8 space-y-8">
-          {/* Skills Section */}
+          {/* Required Skills */}
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700 mb-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">
               Required Technical Skills
             </h2>
             <div className="flex flex-wrap gap-2">
               {job.required_skills?.map((skill, idx) => (
                 <span
                   key={idx}
-                  className="px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200"
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80"
                 >
                   {skill}
                 </span>
@@ -298,16 +322,17 @@ export default function JobDetail() {
             </div>
           </div>
 
+          {/* Optional Skills */}
           {job.optional_skills && job.optional_skills.length > 0 && (
             <div>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700 mb-3">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">
                 Preferred / Nice-to-Have Skills
               </h2>
               <div className="flex flex-wrap gap-2">
                 {job.optional_skills.map((skill, idx) => (
                   <span
                     key={idx}
-                    className="px-3 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200"
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200"
                   >
                     {skill}
                   </span>
@@ -316,12 +341,12 @@ export default function JobDetail() {
             </div>
           )}
 
-          {/* Detailed Description */}
+          {/* Role Overview */}
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700 mb-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">
               Role Overview &amp; Responsibilities
             </h2>
-            <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap bg-slate-50/50 p-6 rounded-xl border border-slate-100">
+            <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap bg-slate-50/60 p-6 rounded-2xl border border-slate-100">
               {job.description}
             </div>
           </div>
@@ -338,19 +363,19 @@ export default function JobDetail() {
         </div>
       </div>
 
-      {/* Application Submission Modal */}
+      {/* Modern Application Modal */}
       {showApplyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200/80">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Apply for {job.title}</h3>
-                <p className="text-xs text-slate-500">{job.company_name}</p>
+                <p className="text-xs text-slate-500">{job.company_name} &bull; {job.location}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowApplyModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
+                className="text-slate-400 hover:text-slate-600 text-xl font-bold w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100 transition"
               >
                 &times;
               </button>
@@ -358,12 +383,12 @@ export default function JobDetail() {
 
             {applySuccess ? (
               <div className="p-6 text-center space-y-3">
-                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold">
+                <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
                   ✓
                 </div>
-                <h4 className="text-base font-bold text-slate-900">Application Submitted!</h4>
-                <p className="text-xs text-slate-500">
-                  Your resume has been uploaded and parsed. You can track this application in your dashboard.
+                <h4 className="text-lg font-bold text-slate-900">Application Submitted!</h4>
+                <p className="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto">
+                  Your resume has been securely stored and parsed. Our AI matching engine is calculating your qualification scores.
                 </p>
               </div>
             ) : (
@@ -374,34 +399,73 @@ export default function JobDetail() {
                   </div>
                 )}
 
+                {/* Dropzone File Upload */}
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                    Upload Resume (PDF or DOCX, max 5 MB) *
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-2">
+                    Resume Document *
                   </label>
-                  <input
-                    type="file"
-                    accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    onChange={handleFileChange}
-                    required
-                    className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition"
-                  />
-                  {selectedFile && (
-                    <span className="text-[11px] text-emerald-600 font-medium block mt-1">
-                      Selected: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
-                    </span>
+
+                  {!selectedFile ? (
+                    <label className="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 hover:bg-indigo-50/20 transition group">
+                      <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                      </div>
+                      <span className="text-xs font-semibold text-slate-800">
+                        Click to select or drag and drop resume
+                      </span>
+                      <span className="text-[11px] text-slate-400 mt-1">
+                        PDF or DOCX documents up to 5 MB
+                      </span>
+                      <input
+                        type="file"
+                        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                  ) : (
+                    <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-200 flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs uppercase">
+                          {selectedFile.name.split('.').pop()}
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-slate-900 truncate max-w-[200px] sm:max-w-[250px]">
+                            {selectedFile.name}
+                          </div>
+                          <div className="text-[11px] text-slate-500">
+                            {(selectedFile.size / 1024).toFixed(1)} KB &bull; Ready for upload
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFile(null)}
+                        className="text-xs font-semibold text-red-600 hover:text-red-800 px-2 py-1 hover:bg-red-50 rounded-lg transition"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   )}
                 </div>
 
+                {/* Cover Note */}
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                    Cover Note / Message to Recruiter (Optional)
-                  </label>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                      Cover Note / Message (Optional)
+                    </label>
+                    <span className="text-[11px] text-slate-400">{coverNote.length}/1000</span>
+                  </div>
                   <textarea
                     rows={4}
+                    maxLength={1000}
                     value={coverNote}
                     onChange={(e) => setCoverNote(e.target.value)}
-                    placeholder="Introduce yourself, highlight relevant achievements, or add portfolio links..."
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Introduce yourself, highlight key achievements, or link your portfolio/GitHub..."
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-xs"
                   ></textarea>
                 </div>
 
@@ -409,16 +473,16 @@ export default function JobDetail() {
                   <button
                     type="button"
                     onClick={() => setShowApplyModal(false)}
-                    className="px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+                    className="px-4 py-2.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={submittingApp || !selectedFile}
-                    className="px-5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition disabled:opacity-50 shadow-xs"
+                    className="px-6 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition disabled:opacity-50 shadow-xs"
                   >
-                    {submittingApp ? 'Submitting & Parsing...' : 'Submit Application'}
+                    {submittingApp ? 'Uploading & Parsing...' : 'Submit Application'}
                   </button>
                 </div>
               </form>

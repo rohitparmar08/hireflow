@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import jobsApi from '../../api/jobs.api';
+import SkillTagInput from '../../components/SkillTagInput';
 
 export default function EditJob() {
   const { id } = useParams();
@@ -22,11 +23,12 @@ export default function EditJob() {
     min_salary: '',
     max_salary: '',
     salary_currency: 'USD',
-    required_skills_input: '',
-    optional_skills_input: '',
     description: '',
     status: 'ACTIVE',
   });
+
+  const [requiredSkills, setRequiredSkills] = useState([]);
+  const [optionalSkills, setOptionalSkills] = useState([]);
 
   useEffect(() => {
     const fetchJob = async () => {
@@ -49,11 +51,12 @@ export default function EditJob() {
           min_salary: job.min_salary || '',
           max_salary: job.max_salary || '',
           salary_currency: job.salary_currency || 'USD',
-          required_skills_input: (job.required_skills || []).join(', '),
-          optional_skills_input: (job.optional_skills || []).join(', '),
           description: job.description || '',
           status: job.status || 'ACTIVE',
         });
+
+        setRequiredSkills(job.required_skills || []);
+        setOptionalSkills(job.optional_skills || []);
       } catch (err) {
         setErrorMessage(err.message || 'Failed to load job details.');
       } finally {
@@ -74,18 +77,8 @@ export default function EditJob() {
     e.preventDefault();
     setErrorMessage('');
 
-    const requiredSkills = formData.required_skills_input
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-
-    const optionalSkills = formData.optional_skills_input
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-
     if (requiredSkills.length === 0) {
-      setErrorMessage('Please provide at least one required skill (comma-separated).');
+      setErrorMessage('Please provide at least one required skill.');
       return;
     }
 
@@ -180,7 +173,7 @@ export default function EditJob() {
                 value={formData.title}
                 onChange={handleChange}
                 required
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
@@ -194,7 +187,7 @@ export default function EditJob() {
                 value={formData.company_name}
                 onChange={handleChange}
                 required
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
           </div>
@@ -211,7 +204,7 @@ export default function EditJob() {
                 value={formData.location}
                 onChange={handleChange}
                 required
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
@@ -223,7 +216,7 @@ export default function EditJob() {
                 name="location_type"
                 value={formData.location_type}
                 onChange={handleChange}
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               >
                 <option value="REMOTE">Remote</option>
                 <option value="HYBRID">Hybrid</option>
@@ -242,7 +235,7 @@ export default function EditJob() {
                 name="employment_type"
                 value={formData.employment_type}
                 onChange={handleChange}
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               >
                 <option value="FULL_TIME">Full-time</option>
                 <option value="PART_TIME">Part-time</option>
@@ -259,7 +252,7 @@ export default function EditJob() {
                 name="experience_level"
                 value={formData.experience_level}
                 onChange={handleChange}
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               >
                 <option value="ENTRY">Entry-level</option>
                 <option value="MID">Mid-level</option>
@@ -277,7 +270,7 @@ export default function EditJob() {
                 name="status"
                 value={formData.status}
                 onChange={handleChange}
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white font-medium"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white font-medium"
               >
                 <option value="ACTIVE">Active (Publicly Listed)</option>
                 <option value="DRAFT">Draft (Unlisted)</option>
@@ -298,7 +291,7 @@ export default function EditJob() {
                 value={formData.min_salary}
                 onChange={handleChange}
                 min="0"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
@@ -312,7 +305,7 @@ export default function EditJob() {
                 value={formData.max_salary}
                 onChange={handleChange}
                 min="0"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
@@ -325,39 +318,32 @@ export default function EditJob() {
                 name="salary_currency"
                 value={formData.salary_currency}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
           </div>
 
-          {/* Skills Input */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
-                Required Skills (Comma-separated) *
-              </label>
-              <input
-                type="text"
-                name="required_skills_input"
-                value={formData.required_skills_input}
-                onChange={handleChange}
-                required
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
+          {/* Interactive Skills Input */}
+          <div className="space-y-4 pt-2">
+            <SkillTagInput
+              tags={requiredSkills}
+              onChange={setRequiredSkills}
+              label="Required Skills"
+              required={true}
+              variant="primary"
+              helperText="These skills are used by the AI engine to evaluate matching criteria."
+              placeholder="Type required skill (e.g. React) and press Enter..."
+            />
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
-                Optional / Nice-to-Have Skills (Comma-separated)
-              </label>
-              <input
-                type="text"
-                name="optional_skills_input"
-                value={formData.optional_skills_input}
-                onChange={handleChange}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
+            <SkillTagInput
+              tags={optionalSkills}
+              onChange={setOptionalSkills}
+              label="Optional / Preferred Skills"
+              required={false}
+              variant="neutral"
+              helperText="Bonus skills that enhance match rankings."
+              placeholder="Type optional skill and press Enter..."
+            />
           </div>
 
           {/* Detailed Job Description */}
@@ -371,7 +357,7 @@ export default function EditJob() {
               value={formData.description}
               onChange={handleChange}
               required
-              className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             ></textarea>
           </div>
 

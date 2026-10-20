@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import jobsApi from '../../api/jobs.api';
+import SkillTagInput from '../../components/SkillTagInput';
 
 export default function CreateJob() {
   const { user } = useAuth();
@@ -17,12 +18,12 @@ export default function CreateJob() {
     min_salary: '',
     max_salary: '',
     salary_currency: 'USD',
-    required_skills_input: '',
-    optional_skills_input: '',
     description: '',
     status: 'ACTIVE',
   });
 
+  const [requiredSkills, setRequiredSkills] = useState(['Python', 'Django']);
+  const [optionalSkills, setOptionalSkills] = useState(['Docker', 'PostgreSQL']);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -36,19 +37,8 @@ export default function CreateJob() {
     e.preventDefault();
     setErrorMessage('');
 
-    // Parse comma-separated skills
-    const requiredSkills = formData.required_skills_input
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-
-    const optionalSkills = formData.optional_skills_input
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-
     if (requiredSkills.length === 0) {
-      setErrorMessage('Please provide at least one required skill (comma-separated).');
+      setErrorMessage('Please add at least one required technical skill.');
       return;
     }
 
@@ -107,7 +97,7 @@ export default function CreateJob() {
         </Link>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 sm:p-8">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 sm:p-8">
         <div className="border-b border-slate-100 pb-4 mb-6">
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Post a New Job Opening</h1>
           <p className="text-xs text-slate-500 mt-1">
@@ -135,7 +125,7 @@ export default function CreateJob() {
                 onChange={handleChange}
                 placeholder="e.g. Senior Full-Stack Engineer"
                 required
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
@@ -150,7 +140,7 @@ export default function CreateJob() {
                 onChange={handleChange}
                 placeholder="Acme Talent Corp"
                 required
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
           </div>
@@ -168,7 +158,7 @@ export default function CreateJob() {
                 onChange={handleChange}
                 placeholder="e.g. San Francisco, CA or Remote (US/EU)"
                 required
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
@@ -180,7 +170,7 @@ export default function CreateJob() {
                 name="location_type"
                 value={formData.location_type}
                 onChange={handleChange}
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               >
                 <option value="REMOTE">Remote</option>
                 <option value="HYBRID">Hybrid</option>
@@ -199,7 +189,7 @@ export default function CreateJob() {
                 name="employment_type"
                 value={formData.employment_type}
                 onChange={handleChange}
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               >
                 <option value="FULL_TIME">Full-time</option>
                 <option value="PART_TIME">Part-time</option>
@@ -216,7 +206,7 @@ export default function CreateJob() {
                 name="experience_level"
                 value={formData.experience_level}
                 onChange={handleChange}
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               >
                 <option value="ENTRY">Entry-level</option>
                 <option value="MID">Mid-level</option>
@@ -234,7 +224,7 @@ export default function CreateJob() {
                 name="status"
                 value={formData.status}
                 onChange={handleChange}
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               >
                 <option value="ACTIVE">Publish (Active)</option>
                 <option value="DRAFT">Save as Draft</option>
@@ -255,7 +245,7 @@ export default function CreateJob() {
                 onChange={handleChange}
                 placeholder="100000"
                 min="0"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
@@ -270,7 +260,7 @@ export default function CreateJob() {
                 onChange={handleChange}
                 placeholder="150000"
                 min="0"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
@@ -283,44 +273,32 @@ export default function CreateJob() {
                 name="salary_currency"
                 value={formData.salary_currency}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
           </div>
 
-          {/* Skills Input */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
-                Required Skills (Comma-separated) *
-              </label>
-              <input
-                type="text"
-                name="required_skills_input"
-                value={formData.required_skills_input}
-                onChange={handleChange}
-                placeholder="e.g. Python, Django, PostgreSQL, REST APIs"
-                required
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <span className="text-[11px] text-slate-400 mt-1 block">
-                These tags will be used by the Phase 5 AI Resume Matching Engine to compute qualification scores.
-              </span>
-            </div>
+          {/* Interactive Skills Input */}
+          <div className="space-y-4 pt-2">
+            <SkillTagInput
+              tags={requiredSkills}
+              onChange={setRequiredSkills}
+              label="Required Skills"
+              required={true}
+              variant="primary"
+              helperText="These tags are directly used by the AI Resume Matching Engine to calculate candidate qualification percentages."
+              placeholder="Type required skill (e.g. Python) and press Enter..."
+            />
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
-                Optional / Nice-to-Have Skills (Comma-separated)
-              </label>
-              <input
-                type="text"
-                name="optional_skills_input"
-                value={formData.optional_skills_input}
-                onChange={handleChange}
-                placeholder="e.g. Docker, Kubernetes, AWS, Redis"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
+            <SkillTagInput
+              tags={optionalSkills}
+              onChange={setOptionalSkills}
+              label="Optional / Preferred Skills"
+              required={false}
+              variant="neutral"
+              helperText="Bonus skills that enhance match rankings but aren't strictly mandatory."
+              placeholder="Type optional skill (e.g. Docker, Redis) and press Enter..."
+            />
           </div>
 
           {/* Detailed Job Description */}
@@ -335,7 +313,7 @@ export default function CreateJob() {
               onChange={handleChange}
               placeholder="Describe the role, day-to-day responsibilities, qualifications, and team culture..."
               required
-              className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             ></textarea>
           </div>
 
