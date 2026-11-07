@@ -25,7 +25,7 @@ services:
       - key: CORS_ALLOWED_ORIGINS
         value: "https://hireflow-frontend-sqsc.onrender.com,https://hireflow-frontend.onrender.com,http://localhost:5173,http://localhost:3000"
       - key: CSRF_TRUSTED_ORIGINS
-        value: "https://hireflow-frontend-sqsc.onrender.com,https://hireflow-backend-gilk.onrender.com,https://hireflow-frontend.onrender.com,https://hireflow-backend.onrender.com"
+        value: "https://hireflow-frontend-sqsc.onrender.com,https://hireflow-backend-nmn1.onrender.com,https://hireflow-frontend.onrender.com,https://hireflow-backend.onrender.com"
       - key: DJANGO_SECURE_SSL_REDIRECT
         value: "True"
       - key: DJANGO_SESSION_COOKIE_SECURE
@@ -47,7 +47,7 @@ services:
     autoDeploy: true
     envVars:
       - key: VITE_API_BASE_URL
-        value: "https://hireflow-backend-gilk.onrender.com/api/v1"
+        value: "https://hireflow-backend-nmn1.onrender.com/api/v1"
       - key: NODE_VERSION
         value: "20"
     routes:

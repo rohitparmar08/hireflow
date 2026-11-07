@@ -189,7 +189,7 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 # CSRF Trusted Origins
 DEFAULT_CSRF_ORIGINS = (
     "https://hireflow-frontend-sqsc.onrender.com,"
-    "https://hireflow-backend-gilk.onrender.com,"
+    "https://hireflow-backend-nmn1.onrender.com,"
     "https://hireflow-frontend.onrender.com,"
     "https://hireflow-backend.onrender.com,"
     "http://localhost:5173,"
