@@ -34,6 +34,29 @@ EDUCATION_TIERS = {
     "ASSOCIATE": {"keywords": ["associate degree", "associate", "diploma"], "score": 70.0},
 }
 
+# Different spellings of the same skill. Job tags and resume text are compared by canonical name,
+# so "REST" on a resume satisfies a "REST API" requirement (and the other way round).
+SKILL_ALIASES = {
+    "rest": "rest", "rest api": "rest", "rest apis": "rest", "restful": "rest",
+    "restful api": "rest", "restful apis": "rest", "restful web services": "rest",
+    "drf": "django rest framework", "django rest": "django rest framework",
+    "django rest framework": "django rest framework",
+    "postgres": "postgresql", "postgresql": "postgresql", "psql": "postgresql",
+    "js": "javascript", "node": "node.js", "nodejs": "node.js", "node.js": "node.js",
+    "reactjs": "react", "react.js": "react",
+    "scikit-learn": "scikit-learn", "scikit learn": "scikit-learn", "sklearn": "scikit-learn",
+    "k8s": "kubernetes", "golang": "go",
+    "amazon web services": "aws", "google cloud": "gcp", "google cloud platform": "gcp",
+    "ml": "machine learning", "tf-idf": "tfidf",
+    "ci/cd": "ci/cd", "cicd": "ci/cd", "ci cd": "ci/cd",
+}
+
+
+def canonical_skill(skill: str) -> str:
+    """Lowercase, trim and map known aliases to one canonical key."""
+    key = " ".join((skill or "").lower().split())
+    return SKILL_ALIASES.get(key, key)
+
 
 def normalize_skills(skills: List[str]) -> List[str]:
     """
@@ -62,7 +85,7 @@ def compute_skill_overlap(
         # If no skills specified in job, no penalty is applied
         return [], [], 100.0
 
-    resume_lookup = {s.lower(): s for s in resume_skills or []}
+    resume_lookup = {canonical_skill(s): s for s in resume_skills or []}
     matching = []
     missing = []
 
@@ -70,8 +93,7 @@ def compute_skill_overlap(
         exp_clean = expected.strip()
         if not exp_clean:
             continue
-        exp_lower = exp_clean.lower()
-        if exp_lower in resume_lookup:
+        if canonical_skill(exp_clean) in resume_lookup:
             matching.append(exp_clean)
         else:
             missing.append(exp_clean)

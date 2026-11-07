@@ -235,7 +235,7 @@ Open `http://localhost:5173` in your browser.
 
 ## 🧪 Automated Test Suite & Security Verification
 
-The backend has 57 automated tests, run on PostgreSQL in GitHub Actions together with a missing-migrations check, the frontend lint and the production build:
+The backend has 61 automated tests, run on PostgreSQL in GitHub Actions together with a missing-migrations check, the frontend lint and the production build:
 
 ```bash
 cd backend
@@ -281,7 +281,7 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/hireflow python manage.
 - Engineered a **deterministic, explainable AI resume-to-job matching engine** combining TF-IDF bi-gram cosine similarity with canonical skill taxonomy matching.
 - Developed an automated resume ingestion pipeline supporting PDF/DOCX format verification, file signature validation, and safe UUID document streaming.
 - Built a modern, accessible UI with Tailwind CSS, interactive skill tag builders, live candidate rankers, and dynamic dashboard metrics.
-- Hardened for production with rate-limited auth, a database copy of every resume (the free host wipes its disk on restart), secret-key validation, WhiteNoise static compression and Gunicorn threads; 57 automated tests run on PostgreSQL in GitHub Actions CI.
+- Hardened for production with rate-limited auth, a database copy of every resume (the free host wipes its disk on restart), secret-key validation, WhiteNoise static compression and Gunicorn threads; 61 automated tests run on PostgreSQL in GitHub Actions CI.
 
 ---
 
