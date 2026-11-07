@@ -2,11 +2,13 @@
 
 [![Repository](https://img.shields.io/badge/github-rohitparmar08%2Fhireflow-blue?logo=github)](https://github.com/rohitparmar08/hireflow)
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/rohitparmar08/hireflow)
-[![Backend Tests](https://img.shields.io/badge/django%20tests-49%2F49%20passed-success.svg)](https://github.com/rohitparmar08)
-[![Frontend](https://img.shields.io/badge/frontend-React%2019%20%2B%20Vite%208-blue.svg)](https://github.com/rohitparmar08)
+[![CI](https://github.com/rohitparmar08/hireflow/actions/workflows/ci.yml/badge.svg)](https://github.com/rohitparmar08/hireflow/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-HireFlow is an enterprise-grade, full-stack applicant tracking and recruitment management platform (ATS). Built with **Django REST Framework**, **React 19**, **Tailwind CSS**, and a **Python Scikit-Learn NLP AI matching engine**, it provides role-based workflows for job seekers and hiring teams, automated resume ingestion (PDF/DOCX), and explainable candidate-to-job qualification scoring.
+**Live demo:** https://hireflow-frontend-sqsc.onrender.com  
+Hosted on free tiers (React static site and Django API on Render, PostgreSQL on Neon). The free API server sleeps after about 15 minutes without traffic, so the first request can take up to a minute.
+
+HireFlow is a full-stack applicant tracking and recruitment management platform (ATS). Built with **Django REST Framework**, **React 19**, **Tailwind CSS**, and a **Python Scikit-Learn NLP AI matching engine**, it provides role-based workflows for job seekers and hiring teams, automated resume ingestion (PDF/DOCX), and explainable candidate-to-job qualification scoring.
 
 ---
 
@@ -25,38 +27,38 @@ HireFlow is an enterprise-grade, full-stack applicant tracking and recruitment m
                                           v
 +-----------------------------------------------------------------------------------+
 |                                 GATEWAY TIER                                      |
-|  Nginx Alpine Reverse Proxy + WhiteNoise Static Compression + SSL Termination     |
-|  - Security Headers (HSTS, CSP, X-Frame-Options: DENY, XSS-Protection)           |
-|  - Client-Side SPA Route Fallback & Streamed Proxying                             |
+|  Nginx (Docker) or Render static hosting + WhiteNoise for API static files        |
+|  - Security headers (X-Frame-Options: DENY, nosniff, HSTS in production)          |
+|  - Client-side SPA route fallback                                                 |
 +-----------------------------------------+-----------------------------------------+
                                           |
                                           v
 +-----------------------------------------------------------------------------------+
 |                                APPLICATION TIER                                   |
 |  Django 5 + Django REST Framework + Gunicorn WSGI Workers (Multi-threaded)        |
-|  - Custom User Model (RBAC: RECRUITER / CANDIDATE)                                |
+|  - Custom user model (RBAC: RECRUITER / CANDIDATE), rate-limited auth             |
 |  - Job Management (Draft / Active / Closed lifecycles, full-text filters)         |
 |  - Resume Ingestion Engine (PyPDF + Python-docx, signature validation, safe UUID)  |
 |  - Explainable AI Match Engine (Scikit-Learn TF-IDF, Cosine Similarity, Taxonomy) |
-|  - Authenticated Document Streaming (Private FileResponse with Object-Level RBAC)|
+|  - Authenticated resume streaming (object-level RBAC)                             |
 +-------------------+---------------------------------------+-----------------------+
                     |                                       |
                     v                                       v
 +-----------------------------------+   +-------------------------------------------+
 |          DATABASE TIER            |   |               STORAGE TIER                |
-|  PostgreSQL 16 (Production)       |   |  Private Resumes Storage (Encrypted Disks)|
-|  SQLite 3 (Zero-Friction Dev)     |   |  Object-Level Permission Controlled Access|
+|  PostgreSQL 16 (Production)       |   |  Private resume storage (disk + DB)       |
+|  SQLite 3 (Zero-Friction Dev)     |   |  Object-level permission-controlled access|
 +-----------------------------------+   +-------------------------------------------+
 ```
 
 ### Core Technologies
 - **Frontend**: React 19, Vite 8.3, Tailwind CSS v3, React Router v7, Axios.
 - **Backend**: Python 3.12/3.14, Django 5.1, Django REST Framework 3.15, Gunicorn 23.
-- **Authentication**: JWT via SimpleJWT (Token Rotation, Blacklist Revocation, HttpOnly cookies ready).
+- **Authentication**: JWT via SimpleJWT (token rotation and blacklist on logout), with per-IP rate limits on login and registration.
 - **AI / NLP**: Scikit-Learn (TF-IDF Vectorization, Bi-Gram Tokenizer, Cosine Similarity), PyPDF, Python-docx.
 - **Production Static Serving**: WhiteNoise 6.8 with Manifest Compression (`CompressedManifestStaticFilesStorage`).
-- **Database**: PostgreSQL 16 (Production via `dj-database-url`), SQLite (Local development fallback).
-- **Containerization**: Docker, Docker Compose, Multi-stage unprivileged containers, Nginx Alpine.
+- **Database**: PostgreSQL 16 on Neon (via `dj-database-url`), SQLite (local development fallback).
+- **Containerization**: Docker and Docker Compose (multi-stage frontend build served by Nginx, non-root backend image).
 
 ---
 
@@ -87,6 +89,11 @@ HireFlow is an enterprise-grade, full-stack applicant tracking and recruitment m
   - **10% Experience Level**: Seniority keyword detection and years-of-experience regex matching.
   - **10% Education Tier**: Degree credential taxonomy classification.
 - **Full Explainability**: Surfaces exact matching skills, actionable missing skills, component contributions, and plain-English narrative justifications.
+
+### 5. Operational Safeguards
+- **Rate limiting**: login and registration are limited per IP (`10/min`) and job applications per user (`20/hour`), configurable with `THROTTLE_AUTH` and `THROTTLE_APPLY`.
+- **Resumes survive restarts**: every uploaded resume is also stored in the database, so downloads keep working on hosts with an ephemeral disk (such as Render's free tier). Extracted text and match scores are stored in the database as well.
+- **Production guard rails**: the API refuses to start without a unique `DJANGO_SECRET_KEY` (at least 32 characters) and an explicit `DJANGO_ALLOWED_HOSTS`.
 
 ---
 
@@ -157,18 +164,17 @@ docker compose down
 
 ---
 
-### 2. Cloud Deployment (Render Blueprint)
+### 2. Cloud Deployment (Neon + Render)
 
-HireFlow includes a complete Infrastructure-as-Code `render.yaml` blueprint for 1-click cloud deployment:
+The live demo runs on free tiers: the database on [Neon](https://neon.tech), the API and the React build on [Render](https://render.com), described by `render.yaml`.
 
-1. Fork or push this repository to your GitHub account (`rohitparmar08/hireflow`).
-2. Log in to [Render](https://render.com) and click **New +** -> **Blueprint**.
-3. Select the `hireflow` repository.
-4. Render automatically provisions:
-   - **PostgreSQL Database**: Free managed PostgreSQL (`hireflow-postgres`).
-   - **Backend Web Service**: Python 3 runtime, auto-runs migrations and WhiteNoise `collectstatic`.
-   - **Frontend Static Site**: Node build, Nginx-equivalent routing with SPA fallback.
-   - **Persistent Disk**: Mounted at `/app/media` for secure resume storage.
+1. **Database (Neon).** Create a project, open **Connect**, turn connection pooling off and copy the `postgresql://...?sslmode=require` string.
+2. **Blueprint (Render).** Choose **New +** -> **Blueprint**, select this repository and paste the Neon string when Render asks for `DATABASE_URL`. Render creates:
+   - **Backend web service** (Python, free plan, one Gunicorn worker with four threads; runs `collectstatic` and migrations during the build; health check `/health/`).
+   - **Frontend static site** (Node build with an SPA rewrite to `index.html`).
+3. If your Render URLs differ from the ones in `render.yaml`, update `CORS_ALLOWED_ORIGINS`, `CSRF_TRUSTED_ORIGINS` (backend) and `VITE_API_BASE_URL` (frontend) and redeploy.
+
+Free-tier behaviour: the API sleeps after about 15 minutes without traffic, and its disk is wiped on restart. That is why resumes are also kept in the database.
 
 ---
 
@@ -198,7 +204,7 @@ pip install -r requirements.txt
 # Run migrations (defaults to SQLite locally)
 python manage.py migrate
 
-# Run automated test suite (49 unit, integration & security tests)
+# Run automated test suite (unit, integration & security tests)
 python manage.py test
 
 # Verify production deployment readiness
@@ -229,12 +235,11 @@ Open `http://localhost:5173` in your browser.
 
 ## 🧪 Automated Test Suite & Security Verification
 
-The automated test suite runs 49 tests validating all core domain modules, API contracts, security permissions, and AI algorithms:
+The backend has 57 automated tests, run on PostgreSQL in GitHub Actions together with a missing-migrations check, the frontend lint and the production build:
 
-```text
-Ran 49 tests in 87.879s
-OK
-System check identified no issues (0 silenced).
+```bash
+cd backend
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/hireflow python manage.py test
 ```
 
 ### Tested Domains:
@@ -243,6 +248,7 @@ System check identified no issues (0 silenced).
 3. **Application Ingestion**: Duplicate submission prevention, PDF/DOCX magic signature verification, 5 MB file size limit enforcement, safe UUID storage filenames.
 4. **Document Privacy**: Streamed resume downloads restricted exclusively to the applicant and job owner; 403 Forbidden on unauthorized access; path traversal immunity.
 5. **AI Matching Accuracy**: Bounded 0.0–100.0 scoring, deterministic reproducibility, case-insensitive taxonomy intersection, TF-IDF bi-gram cosine similarity, and graceful degradation on unreadable files.
+6. **Rate Limits & Resume Durability**: Throttled login, registration and applications; resume downloads served from the database when the file on disk is gone; binary content never exposed through the API.
 
 ---
 
@@ -250,14 +256,16 @@ System check identified no issues (0 silenced).
 
 | Variable | Scope | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `DJANGO_SECRET_KEY` | Backend | None (Required in Prod) | 50+ character cryptographic secret key |
+| `DJANGO_SECRET_KEY` | Backend | None (Required in Prod) | Unique random secret, at least 32 characters |
 | `DJANGO_DEBUG` | Backend | `False` | Debug mode (must be `False` in production) |
 | `DJANGO_SETTINGS_MODULE` | Backend | `config.settings.production`| Active Django settings module |
 | `DJANGO_ALLOWED_HOSTS` | Backend | `localhost,127.0.0.1` | Comma-separated allowed hostnames |
-| `DATABASE_URL` | Backend | `sqlite:///db.sqlite3` | PostgreSQL connection string |
+| `DATABASE_URL` | Backend | `sqlite:///db.sqlite3` | PostgreSQL connection string (Neon in the live demo) |
 | `CORS_ALLOWED_ORIGINS` | Backend | `http://localhost:5173` | Comma-separated allowed client origins |
 | `CSRF_TRUSTED_ORIGINS` | Backend | Matches CORS origins | Comma-separated trusted origins for CSRF |
 | `DJANGO_SECURE_SSL_REDIRECT`| Backend | `False` (behind proxy) | Redirect HTTP to HTTPS |
+| `THROTTLE_AUTH` | Backend | `10/min` | Rate limit for login and registration (per IP) |
+| `THROTTLE_APPLY` | Backend | `20/hour` | Rate limit for job applications (per user) |
 | `VITE_API_BASE_URL` | Frontend | `http://localhost:8000/api/v1`| Backend API root URL |
 
 ---
@@ -273,7 +281,17 @@ System check identified no issues (0 silenced).
 - Engineered a **deterministic, explainable AI resume-to-job matching engine** combining TF-IDF bi-gram cosine similarity with canonical skill taxonomy matching.
 - Developed an automated resume ingestion pipeline supporting PDF/DOCX format verification, file signature validation, and safe UUID document streaming.
 - Built a modern, accessible UI with Tailwind CSS, interactive skill tag builders, live candidate rankers, and dynamic dashboard metrics.
-- Hardened for production with **WhiteNoise static compression**, Gunicorn multi-threading, Docker multi-stage containers, and 100% test pass rate across 49 automated test cases.
+- Hardened for production with rate-limited auth, a database copy of every resume (the free host wipes its disk on restart), secret-key validation, WhiteNoise static compression and Gunicorn threads; 57 automated tests run on PostgreSQL in GitHub Actions CI.
+
+---
+
+## Known Limitations
+
+- Resume parsing and matching run synchronously inside the upload request, which is fine for 5 MB files but would need a task queue at scale.
+- Skills are matched against a fixed taxonomy of about 150 technologies, so skills outside the list are not detected.
+- Resumes are stored in the database as well as on disk (up to 5 MB each); object storage such as S3 would be the next step for large volumes.
+- Scanned (image-only) resumes are not OCR-processed.
+- On the free hosting tier the API sleeps when idle, so the first request after a pause is slow.
 
 ---
 
