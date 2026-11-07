@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import jobsApi from '../../api/jobs.api';
+import { formatSalaryRange } from '../../utils/formatSalary';
 
 const QUICK_FILTERS = [
   { label: 'All Openings', key: null },
@@ -411,7 +412,7 @@ export default function JobListing() {
                         <>
                           <span>&bull;</span>
                           <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                            ${Number(job.min_salary).toLocaleString()} - ${Number(job.max_salary).toLocaleString()} {job.salary_currency}
+                            {formatSalaryRange(job.min_salary, job.max_salary, job.salary_currency)}
                           </span>
                         </>
                       )}

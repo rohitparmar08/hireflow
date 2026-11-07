@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import jobsApi from '../../api/jobs.api';
 import applicationsApi from '../../api/applications.api';
+import { formatSalaryRange } from '../../utils/formatSalary';
 
 function getCompanyAvatar(name) {
   const initial = name ? name.trim().charAt(0).toUpperCase() : 'H';
@@ -229,7 +230,7 @@ export default function JobDetail() {
                   <>
                     <span>&bull;</span>
                     <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                      ${Number(job.min_salary).toLocaleString()} - ${Number(job.max_salary).toLocaleString()} {job.salary_currency}
+                      {formatSalaryRange(job.min_salary, job.max_salary, job.salary_currency)}
                     </span>
                   </>
                 )}
