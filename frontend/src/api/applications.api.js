@@ -12,7 +12,7 @@ export const applicationsApi = {
 
   getCandidateApplications: async (params = {}) => {
     const cleanParams = Object.fromEntries(
-      Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
     );
     const response = await apiClient.get('/candidate/applications/', { params: cleanParams });
     return response.data;
@@ -20,7 +20,7 @@ export const applicationsApi = {
 
   getJobApplicants: async (jobId, params = {}) => {
     const cleanParams = Object.fromEntries(
-      Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
     );
     const response = await apiClient.get(`/jobs/${jobId}/applications/`, { params: cleanParams });
     return response.data;

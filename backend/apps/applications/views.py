@@ -1,3 +1,4 @@
+import io
 import re
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
@@ -6,6 +7,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied, ValidationErro
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 
@@ -32,6 +34,8 @@ class JobApplicationSubmitView(APIView):
 
     permission_classes = [IsAuthenticated, IsCandidate]
     parser_classes = [MultiPartParser, FormParser]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "apply"
 
     def post(self, request, id, *args, **kwargs):
         job = get_object_or_404(JobPosting, id=id)
@@ -209,7 +213,10 @@ class ResumeDownloadView(APIView):
         try:
             file_handle = resume.file.open("rb")
         except (FileNotFoundError, OSError):
-            raise NotFound("Resume document file not found on storage.")
+            # The disk copy is gone (for example after a restart); fall back to the database copy.
+            if not resume.file_content:
+                raise NotFound("Resume document file not found on storage.")
+            file_handle = io.BytesIO(bytes(resume.file_content))
 
         content_type = resume.content_type or "application/octet-stream"
         safe_filename = re.sub(r"[^\w\.-]", "_", resume.original_filename or "resume.pdf")

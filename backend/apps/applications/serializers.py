@@ -215,10 +215,15 @@ class ApplicationSubmissionSerializer(serializers.Serializer):
                 {"detail": "You have already submitted an application for this job opening."}
             )
 
-        # 2. Create Resume record
+        # 2. Create Resume record (the bytes are also kept in the database because the
+        #    server disk on free hosting is wiped on every restart)
+        file_obj.seek(0)
+        file_bytes = file_obj.read()
+        file_obj.seek(0)
         resume = Resume.objects.create(
             application=application,
             file=file_obj,
+            file_content=file_bytes,
             original_filename=file_obj.name,
             file_size=file_obj.size,
             content_type=getattr(file_obj, "content_type", "application/octet-stream"),

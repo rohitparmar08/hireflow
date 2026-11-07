@@ -3,7 +3,7 @@ import apiClient from './client';
 export const jobsApi = {
   getPublicJobs: async (params = {}) => {
     const cleanParams = Object.fromEntries(
-      Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
     );
     const response = await apiClient.get('/jobs/', { params: cleanParams });
     return response.data;
@@ -31,7 +31,7 @@ export const jobsApi = {
 
   getRecruiterJobs: async (params = {}) => {
     const cleanParams = Object.fromEntries(
-      Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
     );
     const response = await apiClient.get('/recruiter/jobs/', { params: cleanParams });
     return response.data;

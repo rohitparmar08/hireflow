@@ -128,6 +128,12 @@ class Resume(models.Model):
         related_name="resume",
     )
     file = models.FileField(upload_to=resume_upload_path)
+    file_content = models.BinaryField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text=_("Copy of the uploaded file, so downloads still work when the server disk is ephemeral."),
+    )
     original_filename = models.CharField(max_length=255)
     file_size = models.PositiveIntegerField(help_text=_("File size in bytes"))
     content_type = models.CharField(max_length=100)

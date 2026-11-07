@@ -11,9 +11,13 @@ DEBUG = False
 
 # Validate production SECRET_KEY
 secret_key_env = os.getenv("DJANGO_SECRET_KEY")
-if not secret_key_env or secret_key_env.startswith("hireflow-insecure-dev-key"):
+if (
+    not secret_key_env
+    or len(secret_key_env) < 32
+    or secret_key_env.startswith(("hireflow-insecure-dev-key", "change-me"))
+):
     raise ImproperlyConfigured(
-        "A secure, unique DJANGO_SECRET_KEY environment variable must be set in production mode."
+        "A secure, unique DJANGO_SECRET_KEY of at least 32 characters must be set in production mode."
     )
 SECRET_KEY = secret_key_env
 SIMPLE_JWT["SIGNING_KEY"] = SECRET_KEY  # noqa: F405

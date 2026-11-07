@@ -146,6 +146,11 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
+    # Scoped rate limits: "auth" (register/login, per IP) and "apply" (job applications, per user)
+    "DEFAULT_THROTTLE_RATES": {
+        "auth": os.getenv("THROTTLE_AUTH", "10/min"),
+        "apply": os.getenv("THROTTLE_APPLY", "20/hour"),
+    },
 }
 
 # SimpleJWT Authentication Settings
