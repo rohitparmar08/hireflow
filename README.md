@@ -77,7 +77,7 @@ HireFlow is a full-stack applicant tracking and recruitment management platform 
 ### 3. Resume Ingestion & Parsing Engine
 - **Supported Formats**: Machine-readable PDF (`.pdf`) and Microsoft Word (`.docx`), up to 5 MB.
 - **Validation**: Strict MIME-type checking, file extension whitelist, and binary magic byte verification preventing malware uploads.
-- **Deterministic Information Extraction**: Automatically extracts contact details, degree credentials, and matches against a 150+ canonical technical skill taxonomy.
+- **Deterministic Information Extraction**: Automatically extracts contact details, degree credentials, and matches against a 85-skill canonical technical taxonomy.
 - **Private Document Streaming**: Resumes are stored outside public web roots. Files are served exclusively via authenticated `FileResponse` streams enforcing object-level permissions.
 
 ### 4. Explainable AI Match Engine
